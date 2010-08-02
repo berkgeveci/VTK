@@ -36,6 +36,7 @@ IF (VTK_USE_RENDERING AND VTK_USE_DISPLAY)
       TestSmartVolumeMapper.cxx
       TestSmartVolumeMapperWindowLevel.cxx
       TestTM3DLightComponents.cxx
+      TestVolumeRayCastMapperWithOcclusionSpectrum.cxx
       volProt.cxx
       ZsweepConcavities.cxx
       )
