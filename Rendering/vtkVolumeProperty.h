@@ -160,6 +160,32 @@ public:
   double GetScalarOpacityUnitDistance()
     {return this->GetScalarOpacityUnitDistance(0);}
   
+  // Description:
+  // Set the opacity of a volume to an opacity transfer function based
+  // on occlusion spectrum value for the component indicated by index.
+  void SetOcclusionSpectrumOpacity( int index, vtkPiecewiseFunction *function );
+  void SetOcclusionSpectrumOpacity( vtkPiecewiseFunction *f )
+    {this->SetOcclusionSpectrumOpacity(0,f);};
+
+  // Description:
+  // Get the occlusion spectrum opacity transfer function for the given component.
+  // If no transfer function has been set for this component, a default one
+  // is created and returned.
+  vtkPiecewiseFunction *GetOcclusionSpectrumOpacity( int index );
+  vtkPiecewiseFunction *GetOcclusionSpectrumOpacity()
+    {return this->GetOcclusionSpectrumOpacity(0);};
+
+  // Description:
+  // Set/Get the unit distance on which the occlusion spectrum opacity transfer
+  // function is defined. By default this is 1.0, meaning that over a distance
+  // of 1.0 units, a given opacity (from the transfer function) is accumulated.
+  // This is adjusted for the actual sampling distance during rendering.
+  void SetOcclusionSpectrumOpacityUnitDistance( int index, double distance );
+  void SetOcclusionSpectrumOpacityUnitDistance( double distance )
+    {this->SetOcclusionSpectrumOpacityUnitDistance( 0, distance );}
+  double GetOcclusionSpectrumOpacityUnitDistance( int index );
+  double GetOcclusionSpectrumOpacityUnitDistance()
+    {return this->GetOcclusionSpectrumOpacityUnitDistance(0);}
   
   // Description:
   // Set the opacity of a volume to an opacity transfer function based
@@ -275,6 +301,13 @@ public:
 
   // Description:
   // WARNING: INTERNAL METHOD - NOT INTENDED FOR GENERAL USE
+  // Get the time that the occlusion spectrum opacity transfer function was set.
+  vtkTimeStamp GetOcclusionSpectrumOpacityMTime( int index );
+  vtkTimeStamp GetOcclusionSpectrumOpacityMTime()
+    { return this->GetOcclusionSpectrumOpacityMTime(0); }
+
+  // Description:
+  // WARNING: INTERNAL METHOD - NOT INTENDED FOR GENERAL USE
   // Get the time that the RGBTransferFunction was set
   vtkTimeStamp GetRGBTransferFunctionMTime( int index );
   vtkTimeStamp GetRGBTransferFunctionMTime()
@@ -308,6 +341,10 @@ protected:
   vtkPiecewiseFunction          *ScalarOpacity[VTK_MAX_VRCOMP];
   vtkTimeStamp                  ScalarOpacityMTime[VTK_MAX_VRCOMP];
   double                        ScalarOpacityUnitDistance[VTK_MAX_VRCOMP];
+
+  vtkPiecewiseFunction          *OcclusionSpectrumOpacity[VTK_MAX_VRCOMP];
+  vtkTimeStamp                  OcclusionSpectrumOpacityMTime[VTK_MAX_VRCOMP];
+  double                        OcclusionSpectrumOpacityUnitDistance[VTK_MAX_VRCOMP];
   
   vtkPiecewiseFunction          *GradientOpacity[VTK_MAX_VRCOMP];
   vtkTimeStamp                  GradientOpacityMTime[VTK_MAX_VRCOMP];

@@ -35,6 +35,8 @@ vtkVolumeProperty::vtkVolumeProperty()
     this->RGBTransferFunction[i]             = NULL;
     this->ScalarOpacity[i]                   = NULL;
     this->ScalarOpacityUnitDistance[i]       = 1.0;
+    this->OcclusionSpectrumOpacity[i]             = NULL;
+    this->OcclusionSpectrumOpacityUnitDistance[i] = 1.0;
     this->GradientOpacity[i]                 = NULL;
     this->DefaultGradientOpacity[i]          = NULL;
     this->DisableGradientOpacity[i]          = 0;
@@ -67,6 +69,11 @@ vtkVolumeProperty::~vtkVolumeProperty()
     if (this->ScalarOpacity[i] != NULL)
       {
       this->ScalarOpacity[i]->UnRegister(this);
+      }
+
+    if (this->OcclusionSpectrumOpacity[i] != NULL)
+      {
+      this->OcclusionSpectrumOpacity[i]->UnRegister(this);
       }
 
     if (this->GradientOpacity[i] != NULL)
@@ -116,6 +123,12 @@ void vtkVolumeProperty::DeepCopy(vtkVolumeProperty *p)
 
     this->SetScalarOpacityUnitDistance(i, p->GetScalarOpacityUnitDistance(i));
 
+    this->GetOcclusionSpectrumOpacity(i)->
+      DeepCopy(p->GetOcclusionSpectrumOpacity(i));
+
+    this->SetOcclusionSpectrumOpacityUnitDistance
+      (i, p->GetOcclusionSpectrumOpacityUnitDistance(i));
+
     this->GetGradientOpacity(i)->DeepCopy(p->GetGradientOpacity(i));
 
     this->SetDisableGradientOpacity(i, p->GetDisableGradientOpacity(i));
@@ -139,6 +152,7 @@ void vtkVolumeProperty::UpdateMTimes()
     this->GrayTransferFunctionMTime[i].Modified();
     this->RGBTransferFunctionMTime[i].Modified();
     this->ScalarOpacityMTime[i].Modified();
+    this->OcclusionSpectrumOpacityMTime[i].Modified();
     this->GradientOpacityMTime[i].Modified();
     }
 }
@@ -187,6 +201,18 @@ unsigned long int vtkVolumeProperty::GetMTime()
       
       // time that Scalar opacity transfer function was last modified
       time = this->ScalarOpacity[i]->GetMTime();
+      mTime = (mTime > time ? mTime : time);
+      }
+
+    // Occlusion spectrum opacity MTimes
+    if (this->OcclusionSpectrumOpacity[i])
+      {
+      // time that Occlusion Spectrum opacity transfer function pointer was set
+      time = this->OcclusionSpectrumOpacityMTime[i];
+      mTime = (mTime > time ? mTime : time);
+
+      // time that Occlusion Spectrum opacity transfer function was last modified
+      time = this->OcclusionSpectrumOpacity[i]->GetMTime();
       mTime = (mTime > time ? mTime : time);
       }
 
@@ -372,6 +398,68 @@ double vtkVolumeProperty::GetScalarOpacityUnitDistance( int index )
   return  this->ScalarOpacityUnitDistance[index];
 }
 
+// Set the occlusion spectrum opacity of a volume to a transfer function
+void vtkVolumeProperty::SetOcclusionSpectrumOpacity
+( int index, vtkPiecewiseFunction *function )
+{
+  if ( this->OcclusionSpectrumOpacity[index] != function )
+    {
+    if (this->OcclusionSpectrumOpacity[index] != NULL)
+      {
+      this->OcclusionSpectrumOpacity[index]->UnRegister(this);
+      }
+    this->OcclusionSpectrumOpacity[index] = function;
+    if (this->OcclusionSpectrumOpacity[index] != NULL)
+      {
+      this->OcclusionSpectrumOpacity[index]->Register(this);
+      }
+
+    this->OcclusionSpectrumOpacityMTime[index].Modified();
+    this->Modified();
+    }
+}
+
+// Get the occlusion spectrum opacity transfer function. Create one if none set.
+vtkPiecewiseFunction *vtkVolumeProperty::GetOcclusionSpectrumOpacity(int index)
+{
+  if( this->OcclusionSpectrumOpacity[index] == NULL )
+    {
+    this->OcclusionSpectrumOpacity[index] = vtkPiecewiseFunction::New();
+    this->OcclusionSpectrumOpacity[index]->Register(this);
+    this->OcclusionSpectrumOpacity[index]->Delete();
+    this->OcclusionSpectrumOpacity[index]->AddPoint(    0, 1.0 );
+    this->OcclusionSpectrumOpacity[index]->AddPoint( 1024, 1.0 );
+    }
+
+  return this->OcclusionSpectrumOpacity[index];
+}
+
+void vtkVolumeProperty::SetOcclusionSpectrumOpacityUnitDistance
+( int index, double distance )
+{
+  if ( index < 0 || index > 3 )
+    {
+    vtkErrorMacro("Bad index - must be between 0 and 3");
+    return;
+    }
+
+  if ( this->OcclusionSpectrumOpacityUnitDistance[index] != distance )
+    {
+    this->OcclusionSpectrumOpacityUnitDistance[index] = distance;
+    this->Modified();
+    }
+}
+
+double vtkVolumeProperty::GetOcclusionSpectrumOpacityUnitDistance(int index)
+{
+  if ( index < 0 || index > 3 )
+    {
+    vtkErrorMacro("Bad index - must be between 0 and 3");
+    return 0;
+    }
+
+  return  this->OcclusionSpectrumOpacityUnitDistance[index];
+}
   
 // Set the gradient opacity transfer function 
 void vtkVolumeProperty::SetGradientOpacity( int index, vtkPiecewiseFunction *function )
@@ -588,6 +676,11 @@ vtkTimeStamp vtkVolumeProperty::GetScalarOpacityMTime( int index )
   return this->ScalarOpacityMTime[index];
 }
 
+vtkTimeStamp vtkVolumeProperty::GetOcclusionSpectrumOpacityMTime( int index )
+{
+  return this->OcclusionSpectrumOpacityMTime[index];
+}
+
 vtkTimeStamp vtkVolumeProperty::GetGradientOpacityMTime( int index )
 {
   return this->GradientOpacityMTime[index];
@@ -606,6 +699,7 @@ vtkTimeStamp vtkVolumeProperty::GetGrayTransferFunctionMTime( int index )
 // Print the state of the volume property.
 void vtkVolumeProperty::PrintSelf(ostream& os, vtkIndent indent)
 {
+ cout << "here" << endl;
   this->Superclass::PrintSelf(os,indent);
 
   os << indent << "Independent Components: " << 
@@ -633,6 +727,9 @@ void vtkVolumeProperty::PrintSelf(ostream& os, vtkIndent indent)
     
     os << indent << "Scalar Opacity Transfer Function: "
        << this->ScalarOpacity[i] << "\n";
+
+    os << indent << "Occlusion Spectrum Opacity Transfer Function: "
+       << this->OcclusionSpectrumOpacity[i] << "\n";
     
     os << indent << "Gradient Opacity Transfer Function: "
        << this->GradientOpacity[i] << "\n";
