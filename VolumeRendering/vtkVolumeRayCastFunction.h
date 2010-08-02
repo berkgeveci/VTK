@@ -90,6 +90,15 @@ typedef struct
   double                       DataSpacing[3];
   double                       DataOrigin[3];
 
+  // The type of the occlusion spectrum and a pointer to it, and the information
+  // about its size, spacing, origin and precomputed increment
+  int                          OcclusionSpectrumDataType;
+  void                        *OcclusionSpectrumDataPointer;
+  int                          OcclusionSpectrumDataIncrement[3];
+  int                          OcclusionSpectrumDataSize[3];
+  double                       OcclusionSpectrumDataSpacing[3];
+  double                       OcclusionSpectrumDataOrigin[3];
+
   // Information from the vtkVolumeProperty
   int                          Shading;
   int                          ColorChannels;

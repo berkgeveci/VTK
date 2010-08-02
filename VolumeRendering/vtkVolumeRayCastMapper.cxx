@@ -111,6 +111,9 @@ vtkVolumeRayCastMapper::vtkVolumeRayCastMapper()
   this->ImageDisplayHelper     = vtkRayCastImageDisplayHelper::New();
   
   this->IntermixIntersectingGeometry = 1;
+
+  // we have the image inputs and the optional occlusion spectrum input
+  this->SetNumberOfInputPorts(2);
 }
 
 // Destruct a vtkVolumeRayCastMapper - clean up any memory used
@@ -315,6 +318,10 @@ void vtkVolumeRayCastMapper::Render( vtkRenderer *ren, vtkVolume *vol )
     this->GetInput()->UpdateInformation();
     this->GetInput()->SetUpdateExtentToWholeExtent();
     this->GetInput()->Update();
+
+    this->GetOcclusionSpectrum()->UpdateInformation();
+    this->GetOcclusionSpectrum()->SetUpdateExtentToWholeExtent();
+    this->GetOcclusionSpectrum()->Update();
     } 
 
 
@@ -336,7 +343,7 @@ void vtkVolumeRayCastMapper::Render( vtkRenderer *ren, vtkVolume *vol )
 
   // This is the input of this mapper
   vtkImageData *input = this->GetInput();
-  
+
   // Get the camera from the renderer
   vtkCamera *cam = ren->GetActiveCamera();
   
@@ -410,6 +417,19 @@ void vtkVolumeRayCastMapper::Render( vtkRenderer *ren, vtkVolume *vol )
     staticInfo->ScalarDataType = 
       this->GetInput()->GetPointData()->GetScalars()->GetDataType();
 
+    if (vtkImageData* os = this->GetOcclusionSpectrum())
+      {
+      staticInfo->OcclusionSpectrumDataPointer =
+        os->GetPointData()->GetScalars()->GetVoidPointer(0);
+      staticInfo->OcclusionSpectrumDataType =
+        os->GetPointData()->GetScalars()->GetDataType();
+      }
+    else
+      {
+      staticInfo->OcclusionSpectrumDataPointer = 0;
+      staticInfo->OcclusionSpectrumDataType = VTK_VOID;
+      }
+
     // Do we need to capture the z buffer to intermix intersecting
     // geometry? If so, do it here
     if ( this->IntermixIntersectingGeometry && 
@@ -454,6 +474,24 @@ void vtkVolumeRayCastMapper::Render( vtkRenderer *ren, vtkVolume *vol )
     // Requires UpdateTransferFunctions to have been called first
     this->VolumeRayCastFunction->FunctionInitialize( ren, vol, 
                                                      staticInfo );
+
+    // Extra initialization for occlusion spectrum
+    if (vtkImageData* os = this->GetOcclusionSpectrum())
+      {
+      // Get the size, spacing and origin of the occlusion spectrum data
+      os->GetDimensions(staticInfo->OcclusionSpcetrumDataSize   );
+      os->GetSpacing   (staticInfo->OcclusionSpcetrumDataSpacing);
+      os->GetOrigin    (staticInfo->OcclusionSpcetrumDataOrigin );
+
+      // What are the occlusion spectrum data increments?
+      // (One voxel, one row, and one slice offsets)
+      staticInfo->OcclusionSpectrumDataIncrement[0] = 1;
+      staticInfo->OcclusionSpectrumDataIncrement[1]
+        = staticInfo->OcclusionSpectrumDataSize[0];
+      staticInfo->OcclusionSpectrumDataIncrement[2]
+        = staticInfo->OcclusionSpectrumDataSize[0]
+        * staticInfo->OcclusionSpectrumDataSize[1];
+      }
     
     vol->UpdateScalarOpacityforSampleSize( ren, this->SampleDistance );
 
@@ -2026,4 +2064,38 @@ void vtkVolumeRayCastMapper::ReportReferences(vtkGarbageCollector* collector)
   // reference loop.
   vtkGarbageCollectorReport(collector, this->GradientEstimator,
                             "GradientEstimator");
+}
+
+//----------------------------------------------------------------------------
+int vtkVolumeRayCastMapper::FillInputPortInformation(int port, vtkInformation* info)
+{
+  if (port == 0)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
+    info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
+    }
+  if (port == 1)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
+    // the occlusion spectrum input is optional
+    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
+    }
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+void vtkVolumeRayCastMapper::SetOcclusionSpectrum(vtkImageData* os)
+{
+  // if occlusion spectrum is null, then set the input port to null
+  this->SetNthInputConnection(1, 0, (os ? os->GetProducerPort() : 0));
+}
+
+//----------------------------------------------------------------------------
+vtkImageData *vtkVolumeRayCastMapper::GetOcclusionSpectrum()
+{
+  if (this->GetNumberOfInputConnections(1) < 1)
+    {
+    return 0;
+    }
+  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(1, 0));
 }

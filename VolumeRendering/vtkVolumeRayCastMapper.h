@@ -274,6 +274,9 @@ protected:
   // the zbuffer image coordinates. Nearest neighbor value is returned.
   double         GetZBufferValue( int x, int y );
 
+  // see vtkAlgorithm for docs.
+  virtual int FillInputPortInformation(int, vtkInformation*);
+
 private:
   vtkVolumeRayCastMapper(const vtkVolumeRayCastMapper&);  // Not implemented.
   void operator=(const vtkVolumeRayCastMapper&);  // Not implemented.

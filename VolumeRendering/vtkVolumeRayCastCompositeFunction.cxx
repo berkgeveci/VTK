@@ -558,6 +558,7 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
   int             Binc, Cinc, Dinc, Einc, Finc, Ginc, Hinc;
   T               *dptr;
   float           *SOTF;
+  float           *OSTF;
   float           *CTF;
   float           *GTF;
   float           *GOTF;
@@ -578,6 +579,10 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
   // Get the scalar opacity transfer function which maps scalar input values
   // to opacities
   SOTF =  staticInfo->Volume->GetCorrectedScalarOpacityArray();
+
+  // Get the occlusion spectrum opacity transfer function which maps occlusion
+  // spectrum input values to opacities
+  OSTF =  staticInfo->Volume->GetCorrectedOcclusionSpectrumOpacityArray();
 
   // Get the color transfer function which maps scalar input values
   // to RGB colors
@@ -682,6 +687,7 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
         }
       
       opacity = SOTF[(int)(scalar_value)];
+      opacity*= OSTF[(int)(scalar_value)];
       
       if ( opacity )
         {
@@ -793,6 +799,7 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
         }
       
       opacity = SOTF[(int)(scalar_value)];
+      opacity*= OSTF[(int)(scalar_value)];
       
       if ( opacity )
         {
@@ -2526,10 +2533,5 @@ void vtkVolumeRayCastCompositeFunction::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Composite Method: " << this->GetCompositeMethodAsString()
      << "\n";
-
 }
-
-
-
-
 
