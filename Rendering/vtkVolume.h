@@ -129,6 +129,20 @@ public:
   // Description:
   // WARNING: INTERNAL METHOD - NOT INTENDED FOR GENERAL USE
   // DO NOT USE THIS METHOD OUTSIDE OF THE RENDERING PROCESS
+  float *GetCorrectedOcclusionSpectrumOpacityArray(int);
+  float *GetCorrectedOcclusionSpectrumOpacityArray()
+    {return this->GetCorrectedOcclusionSpectrumOpacityArray(0);};
+
+  // Description:
+  // WARNING: INTERNAL METHOD - NOT INTENDED FOR GENERAL USE
+  // DO NOT USE THIS METHOD OUTSIDE OF THE RENDERING PROCESS
+  float *GetOcclusionSpectrumOpacityArray(int);
+  float *GetOcclusionSpectrumOpacityArray()
+  {return this->GetOcclusionSpectrumOpacityArray(0);};
+
+  // Description:
+  // WARNING: INTERNAL METHOD - NOT INTENDED FOR GENERAL USE
+  // DO NOT USE THIS METHOD OUTSIDE OF THE RENDERING PROCESS
   float *GetGradientOpacityArray(int);
   float *GetGradientOpacityArray(){return this->GetGradientOpacityArray(0);};
 
@@ -203,6 +217,20 @@ protected:
   // modeled by a step size different than 1.
   float                *CorrectedScalarOpacityArray[VTK_MAX_VRCOMP];
   vtkTimeStamp          CorrectedScalarOpacityArrayMTime[VTK_MAX_VRCOMP];
+
+  // The occlusion spectrum transfer function array - for unsigned char data
+  // this is 256 elements, for short or unsigned short it is 65536 elements This
+  // is a sample at each scalar value of the opacity transfer function.  A time
+  // stamp is kept to know when it needs rebuilding
+  float                *OcclusionSpectrumOpacityArray[VTK_MAX_VRCOMP];
+  vtkTimeStamp          OcclusionSpectrumOpacityArrayMTime[VTK_MAX_VRCOMP];
+
+  // The corrected occlusion spectrum transfer function array - this is
+  // identical to the opacity transfer function array when the step size is 1.
+  // In other cases, it is corrected to reflect the new material thickness
+  // modeled by a step size different than 1.
+  float                *CorrectedOcclusionSpectrumOpacityArray[VTK_MAX_VRCOMP];
+  vtkTimeStamp          CorrectedOcclusionSpectrumOpacityArrayMTime[VTK_MAX_VRCOMP];
 
   // CorrectedStepSize is the step size currently modeled by
   // CorrectedArray.  It is used to determine when the 

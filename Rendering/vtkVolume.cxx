@@ -47,6 +47,9 @@ vtkVolume::vtkVolume()
     this->RGBArray[i]                    = NULL;
     this->GrayArray[i]                   = NULL;
     this->CorrectedScalarOpacityArray[i] = NULL;
+
+    this->OcclusionSpectrumOpacityArray[i] = NULL;
+    this->CorrectedOcclusionSpectrumOpacityArray[i] = NULL;
     }
   
   this->CorrectedStepSize           = -1;
@@ -83,6 +86,16 @@ vtkVolume::~vtkVolume()
     if ( this->CorrectedScalarOpacityArray[i] )
       {
       delete [] this->CorrectedScalarOpacityArray[i];
+      }
+
+    if (this->OcclusionSpectrumOpacityArray[i])
+      {
+      delete [] this->OcclusionSpectrumOpacityArray[i];
+      }
+
+    if (this->CorrectedOcclusionSpectrumOpacityArray[i])
+      {
+      delete [] this->CorrectedOcclusionSpectrumOpacityArray[i];
       }
     }
 }
@@ -127,6 +140,28 @@ float *vtkVolume::GetCorrectedScalarOpacityArray(int index)
     return NULL;
     }
   return this->CorrectedScalarOpacityArray[index];
+}
+
+float *vtkVolume::GetOcclusionSpectrumOpacityArray(int index)
+{
+  if ( index < 0 || index >= VTK_MAX_VRCOMP )
+    {
+    vtkErrorMacro("Index out of range [0-" << VTK_MAX_VRCOMP <<
+                  "]: " << index );
+    return NULL;
+    }
+  return this->OcclusionSpectrumOpacityArray[index];
+}
+
+float *vtkVolume::GetCorrectedOcclusionSpectrumOpacityArray(int index)
+{
+  if ( index < 0 || index >= VTK_MAX_VRCOMP )
+    {
+    vtkErrorMacro("Index out of range [0-" << VTK_MAX_VRCOMP <<
+                  "]: " << index );
+    return NULL;
+    }
+  return this->CorrectedOcclusionSpectrumOpacityArray[index];
 }
 
 float *vtkVolume::GetGradientOpacityArray(int index)
@@ -518,10 +553,12 @@ unsigned long int vtkVolume::GetRedrawMTime()
   return mTime;
 }
 
+#include <iterator>
 void vtkVolume::UpdateTransferFunctions( vtkRenderer *vtkNotUsed(ren) )
 {
   int                        dataType;
   vtkPiecewiseFunction      *sotf;
+  vtkPiecewiseFunction      *ostf;
   vtkPiecewiseFunction      *gotf;
   vtkPiecewiseFunction      *graytf;
   vtkColorTransferFunction  *rgbtf;
@@ -578,6 +615,16 @@ void vtkVolume::UpdateTransferFunctions( vtkRenderer *vtkNotUsed(ren) )
         delete [] this->CorrectedScalarOpacityArray[c];
         this->CorrectedScalarOpacityArray[c] = NULL;
         }
+      if ( this->OcclusionSpectrumOpacityArray[c] )
+        {
+        delete [] this->OcclusionSpectrumOpacityArray[c];
+        this->OcclusionSpectrumOpacityArray[c] = NULL;
+        }
+      if ( this->CorrectedOcclusionSpectrumOpacityArray[c] )
+        {
+        delete [] this->CorrectedOcclusionSpectrumOpacityArray[c];
+        this->CorrectedOcclusionSpectrumOpacityArray[c] = NULL;
+        }
       if ( this->GrayArray[c] )
         {
         delete [] this->GrayArray[c];
@@ -592,6 +639,10 @@ void vtkVolume::UpdateTransferFunctions( vtkRenderer *vtkNotUsed(ren) )
       // Allocate these two because we know we need them
       this->ScalarOpacityArray[c] = new float[arraySize];
       this->CorrectedScalarOpacityArray[c] = new float[arraySize];
+
+      // Allocate these two because we know we need them
+      this->OcclusionSpectrumOpacityArray[c] = new float[arraySize];
+      this->CorrectedOcclusionSpectrumOpacityArray[c] = new float[arraySize];
     }
   
     // How many color channels for this component?
@@ -631,6 +682,7 @@ void vtkVolume::UpdateTransferFunctions( vtkRenderer *vtkNotUsed(ren) )
     // these being NULL since the property will create them if they were
     // not defined
     sotf          = this->Property->GetScalarOpacity(c);
+    ostf          = this->Property->GetOcclusionSpectrumOpacity(c);
     gotf          = this->Property->GetGradientOpacity(c);
     
     if ( colorChannels == 1 )
@@ -654,6 +706,17 @@ void vtkVolume::UpdateTransferFunctions( vtkRenderer *vtkNotUsed(ren) )
       sotf->GetTable( 0.0, static_cast<double>(arraySize-1),  
                       arraySize, this->ScalarOpacityArray[c] );
       this->ScalarOpacityArrayMTime[c].Modified();
+      }
+
+    // Update the occlusion spectrum opacity array if necessary
+    if ( ostf->GetMTime() >
+         this->OcclusionSpectrumOpacityArrayMTime[c] ||
+         this->Property->GetOcclusionSpectrumOpacityMTime(c) >
+         this->OcclusionSpectrumOpacityArrayMTime[c] )
+      {
+      ostf->GetTable( 0.0, static_cast<double>(arraySize-1),
+                      arraySize, this->OcclusionSpectrumOpacityArray[c] );
+      this->OcclusionSpectrumOpacityArrayMTime[c].Modified();
       }
     
     // Update the gradient opacity array if necessary
@@ -718,8 +781,11 @@ void vtkVolume::UpdateTransferFunctions( vtkRenderer *vtkNotUsed(ren) )
 }
 
 // This method computes the corrected alpha blending for a given
-// step size.  The ScalarOpacityArray reflects step size 1.
+// step size.
+// The ScalarOpacityArray reflects step size 1.
 // The CorrectedScalarOpacityArray reflects step size CorrectedStepSize.
+// The OcclusionSpectrumOpacityArray reflects step size 1.
+// The CorrectedOcclusionSpectrumOpacityArray reflects step size CorrectedStepSize.
 void vtkVolume::UpdateScalarOpacityforSampleSize( vtkRenderer *vtkNotUsed(ren),
                                                   float sample_distance )
 {
@@ -757,6 +823,7 @@ void vtkVolume::UpdateScalarOpacityforSampleSize( vtkRenderer *vtkNotUsed(ren),
   
   for ( int c = 0; c < numComponents; c++ )
     {
+    // Update Scalar Opacity Array
     if (needsRecomputing || 
         this->ScalarOpacityArrayMTime[c] > 
         this->CorrectedScalarOpacityArrayMTime[c])
@@ -780,6 +847,33 @@ void vtkVolume::UpdateScalarOpacityforSampleSize( vtkRenderer *vtkNotUsed(ren),
           correctedAlpha = originalAlpha;
           }
         *(this->CorrectedScalarOpacityArray[c]+i) = correctedAlpha;
+        }
+      }
+
+    // Update Occlusion Spectrum Opacity Array
+    if (needsRecomputing ||
+        this->OcclusionSpectrumOpacityArrayMTime[c] >
+        this->CorrectedOcclusionSpectrumOpacityArrayMTime[c])
+      {
+      this->CorrectedOcclusionSpectrumOpacityArrayMTime[c].Modified();
+
+      for (i = 0; i < this->ArraySize; i++)
+        {
+        originalAlpha = *(this->OcclusionSpectrumOpacityArray[c]+i);
+
+        // this test is to accelerate the Transfer function correction
+        if (originalAlpha > 0.0001)
+          {
+          correctedAlpha =
+            1.0f-static_cast<float>(
+              pow(static_cast<double>(1.0f-originalAlpha),
+                  static_cast<double>(this->CorrectedStepSize)));
+          }
+        else
+          {
+          correctedAlpha = originalAlpha;
+          }
+        *(this->CorrectedOcclusionSpectrumOpacityArray[c]+i) = correctedAlpha;
         }
       }
     }
