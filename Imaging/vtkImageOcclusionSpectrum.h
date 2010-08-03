@@ -35,6 +35,12 @@ public :
   vtkTypeMacro(vtkImageOcclusionSpectrum, vtkThreadedImageAlgorithm);
   void PrintSelf (ostream&, vtkIndent);
 
+  // Description:
+  // Set/Get the spherical Radius for occlusion spectrum computation neighbor
+  // in units of voxels
+  vtkSetMacro(Radius,int);
+  vtkGetMacro(Radius,int);
+
 protected :
  ~vtkImageOcclusionSpectrum () {};
   vtkImageOcclusionSpectrum ();

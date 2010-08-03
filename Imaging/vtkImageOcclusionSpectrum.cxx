@@ -34,13 +34,11 @@ vtkStandardNewMacro(vtkImageOcclusionSpectrum);
 //----------------------------------------------------------------------------
 vtkImageOcclusionSpectrum::vtkImageOcclusionSpectrum()
 {
-  this->Radius = 0;
+  this->Radius = 3;
 
   // by default process active point scalars
   this->SetInputArrayToProcess(0,0,0,vtkDataObject::FIELD_ASSOCIATION_POINTS,
                                vtkDataSetAttributes::SCALARS);
-
-  this->SetNumberOfThreads(1);
 }
 
 //----------------------------------------------------------------------------
@@ -78,22 +76,9 @@ int vtkImageOcclusionSpectrum::RequestUpdateExtent
   int wholeExtent [6] = {0};
   inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), wholeExtent);
 
-  cout << "Input whole extent ";
-  for (int i = 0; i < 6; ++i) { cout << wholeExtent[i] << " "; } cout << endl;
-
   // Get the requested update extent from the output.
   int updateExtent [6] = {0};
   outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), updateExtent);
-
-  cout << "Output initial update extent ";
-  for (int i = 0; i < 6; ++i) { cout << updateExtent[i] << " "; } cout << endl;
-
-  // Radius of the neighboring sphere
-  this->Radius = wholeExtent[1] - wholeExtent[0] + 1
-               + wholeExtent[3] - wholeExtent[2] + 1
-               + wholeExtent[5] - wholeExtent[4] + 1;
-  this->Radius/= 3;
-  this->Radius*=.3;
 
   for (int i = 0, I = 3; i < I; ++i)
     {
@@ -259,6 +244,12 @@ void vtkImageOcclusionSpectrum::ThreadedRequestData
  vtkImageData*** inData, vtkImageData** outData,
  int outExt [6], int threadId)
 {
+  if (0 == this->Radius)
+    {
+    vtkErrorMacro("Execute: Radius must not be 0");
+    return;
+    }
+
   // Get the input and output data objects.
   vtkImageData* input  = **inData;
   vtkImageData* output = *outData;
