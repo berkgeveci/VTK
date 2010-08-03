@@ -90,8 +90,8 @@ typedef struct
   double                       DataSpacing[3];
   double                       DataOrigin[3];
 
-  // The type of the occlusion spectrum and a pointer to it, and the information
-  // about its size, spacing, origin and precomputed increment
+  // The type of the occlusion spectrum data and a pointer to it, and the
+  // information about its size, spacing, origin and precomputed increment
   int                          OcclusionSpectrumDataType;
   void                        *OcclusionSpectrumDataPointer;
   int                          OcclusionSpectrumDataIncrement[3];

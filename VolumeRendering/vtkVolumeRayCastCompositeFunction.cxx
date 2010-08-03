@@ -557,8 +557,9 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
   float           A, B, C, D, E, F, G, H;
   int             Binc, Cinc, Dinc, Einc, Finc, Ginc, Hinc;
   T               *dptr;
+  double          *osptr = 0; // occlusion spectrum pointer
   float           *SOTF;
-  float           *OSTF;
+  float           *OSTF = 0;
   float           *CTF;
   float           *GTF;
   float           *GOTF;
@@ -583,6 +584,7 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
   // Get the occlusion spectrum opacity transfer function which maps occlusion
   // spectrum input values to opacities
   OSTF =  staticInfo->Volume->GetCorrectedOcclusionSpectrumOpacityArray();
+  osptr=  (double*)staticInfo->OcclusionSpectrumDataPointer;
 
   // Get the color transfer function which maps scalar input values
   // to RGB colors
@@ -687,7 +689,33 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
         }
       
       opacity = SOTF[(int)(scalar_value)];
-      opacity*= OSTF[(int)(scalar_value)];
+
+      // Compute occlusion spectrum for this sample
+      if (osptr)
+        {
+        // Assume the occlusion spectrum volume has exactly the same shape as
+        // that of the input scalar volume
+        double occlusion_spectrum_value =
+          osptr[offset     ] * t1 * t2 * t3 +
+          osptr[offset+Binc] *  x * t2 * t3 +
+          osptr[offset+Cinc] * t1 *  y * t3 +
+          osptr[offset+Dinc] *  x *  y * t3 +
+          osptr[offset+Einc] * t1 * t2 *  z +
+          osptr[offset+Finc] *  x * t2 *  z +
+          osptr[offset+Ginc] * t1 *  y *  z +
+          osptr[offset+Hinc] *  x *  y *  z;
+
+        if (occlusion_spectrum_value < 0.0)
+          {
+          occlusion_spectrum_value = 0.0;
+          }
+        else if (occlusion_spectrum_value > staticInfo->Volume->GetArraySize()-1)
+          {
+          occlusion_spectrum_value = staticInfo->Volume->GetArraySize() - 1;
+          }
+
+        opacity *= OSTF[(int)(occlusion_spectrum_value)];
+        }
       
       if ( opacity )
         {
@@ -799,7 +827,34 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
         }
       
       opacity = SOTF[(int)(scalar_value)];
-      opacity*= OSTF[(int)(scalar_value)];
+
+      // Compute occlusion spectrum for this sample
+      if (osptr)
+        {
+        // Assume the occlusion spectrum volume has exactly the same shape as
+        // that of the input scalar volume
+        double occlusion_spectrum_value =
+          osptr[offset     ] * t1 * t2 * t3 +
+          osptr[offset+Binc] *  x * t2 * t3 +
+          osptr[offset+Cinc] * t1 *  y * t3 +
+          osptr[offset+Dinc] *  x *  y * t3 +
+          osptr[offset+Einc] * t1 * t2 *  z +
+          osptr[offset+Finc] *  x * t2 *  z +
+          osptr[offset+Ginc] * t1 *  y *  z +
+          osptr[offset+Hinc] *  x *  y *  z;
+
+        if (occlusion_spectrum_value < 0.0)
+          {
+          occlusion_spectrum_value = 0.0;
+          }
+        else if (occlusion_spectrum_value > staticInfo->Volume->GetArraySize()-1)
+          {
+          occlusion_spectrum_value = staticInfo->Volume->GetArraySize() - 1;
+          }
+
+        opacity *= OSTF[(int)(occlusion_spectrum_value)];
+        }
+
       
       if ( opacity )
         {

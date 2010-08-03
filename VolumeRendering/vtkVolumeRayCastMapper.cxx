@@ -14,26 +14,29 @@
 =========================================================================*/
 #include "vtkVolumeRayCastMapper.h"
 
+#include "vtkAlgorithm.h"
 #include "vtkCamera.h"
 #include "vtkDataArray.h"
 #include "vtkEncodedGradientEstimator.h"
 #include "vtkEncodedGradientShader.h"
+#include "vtkExecutive.h"
 #include "vtkFiniteDifferenceGradientEstimator.h"
 #include "vtkGarbageCollector.h"
 #include "vtkGraphicsFactory.h"
 #include "vtkImageData.h"
+#include "vtkInformation.h"
 #include "vtkMath.h"
 #include "vtkMultiThreader.h"
 #include "vtkObjectFactory.h"
 #include "vtkPlaneCollection.h"
 #include "vtkPointData.h"
-#include "vtkRenderWindow.h"
+#include "vtkRayCastImageDisplayHelper.h"
 #include "vtkRenderer.h"
+#include "vtkRenderWindow.h"
 #include "vtkTimerLog.h"
 #include "vtkTransform.h"
 #include "vtkVolumeProperty.h"
 #include "vtkVolumeRayCastFunction.h"
-#include "vtkRayCastImageDisplayHelper.h"
 
 #include <math.h>
 
@@ -319,9 +322,12 @@ void vtkVolumeRayCastMapper::Render( vtkRenderer *ren, vtkVolume *vol )
     this->GetInput()->SetUpdateExtentToWholeExtent();
     this->GetInput()->Update();
 
-    this->GetOcclusionSpectrum()->UpdateInformation();
-    this->GetOcclusionSpectrum()->SetUpdateExtentToWholeExtent();
-    this->GetOcclusionSpectrum()->Update();
+    if (vtkImageData* os = this->GetOcclusionSpectrum())
+      {
+      os->UpdateInformation();
+      os->SetUpdateExtentToWholeExtent();
+      os->Update();
+      }
     } 
 
 
@@ -479,9 +485,9 @@ void vtkVolumeRayCastMapper::Render( vtkRenderer *ren, vtkVolume *vol )
     if (vtkImageData* os = this->GetOcclusionSpectrum())
       {
       // Get the size, spacing and origin of the occlusion spectrum data
-      os->GetDimensions(staticInfo->OcclusionSpcetrumDataSize   );
-      os->GetSpacing   (staticInfo->OcclusionSpcetrumDataSpacing);
-      os->GetOrigin    (staticInfo->OcclusionSpcetrumDataOrigin );
+      os->GetDimensions(staticInfo->OcclusionSpectrumDataSize   );
+      os->GetSpacing   (staticInfo->OcclusionSpectrumDataSpacing);
+      os->GetOrigin    (staticInfo->OcclusionSpectrumDataOrigin );
 
       // What are the occlusion spectrum data increments?
       // (One voxel, one row, and one slice offsets)

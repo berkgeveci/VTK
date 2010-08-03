@@ -142,6 +142,11 @@ public:
   vtkSetClampMacro( IntermixIntersectingGeometry, int, 0, 1 );
   vtkGetMacro( IntermixIntersectingGeometry, int );
   vtkBooleanMacro( IntermixIntersectingGeometry, int );
+
+  // Description:
+  // Set and Get the Occlusion Spectrum volume for the mapper.
+  void SetOcclusionSpectrum (vtkImageData*);
+  vtkImageData* GetOcclusionSpectrum ();
   
 //BTX
   // Description:
@@ -170,7 +175,6 @@ public:
     {return this->GetGradientMagnitudeScale();};
   virtual float GetGradientMagnitudeBias(int)
     {return this->GetGradientMagnitudeBias();};
-  
 //ETX
 
 protected:
