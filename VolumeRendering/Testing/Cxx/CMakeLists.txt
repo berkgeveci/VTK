@@ -54,7 +54,7 @@ set(CMAKE_TESTDRIVER_BEFORE_TESTMAIN "${CMAKE_TESTDRIVER_BEFORE_TESTMAIN}
   CREATE_TEST_SOURCELIST(Tests ${KIT}CxxTests.cxx ${MyTests}
                          EXTRA_INCLUDE vtkTestDriver.h)
   ADD_EXECUTABLE(${KIT}CxxTests ${Tests} ${MyTestSupport} )
-  TARGET_LINK_LIBRARIES(${KIT}CxxTests vtkVolumeRendering)
+  TARGET_LINK_LIBRARIES(${KIT}CxxTests vtkVolumeRendering vtkHybrid)
   SET (TestsToRun ${Tests})
   REMOVE (TestsToRun ${KIT}CxxTests.cxx)
 

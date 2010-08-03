@@ -12,25 +12,32 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+#include "vtkAssembly.h"
 #include "vtkAxesActor.h"
 #include "vtkColorTransferFunction.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkImageData.h"
 #include "vtkImageOcclusionSpectrum.h"
+#include "vtkImageReader2.h"
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkLODActor.h"
 #include "vtkOutlineFilter.h"
 #include "vtkPiecewiseFunction.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
+#include "vtkRenderer.h"
+#include "vtkRenderWindow.h"
+#include "vtkRenderWindowInteractor.h"
+#include "vtkSmartPointer.h"
 #include "vtkVolume.h"
 #include "vtkVolumeProperty.h"
 #include "vtkVolumeRayCastCompositeFunction.h"
 #include "vtkVolumeRayCastMapper.h"
+#include "vtkVolumeRayCastMIPFunction.h"
+#include "vtkTestUtilities.h"
 
-#define vsp(type, name) \
-        vtkSmartPointer<vtk##type> name = vtkSmartPointer<vtk##type>::New()
-
+#define vsptype(type)   vtkSmartPointer<vtk##type>
+#define vsp(type, name) vsptype(type) name = vsptype(type)::New()
 
 double const opacity [256][3] =
 {
@@ -552,18 +559,27 @@ double const color [256][3] =
   0.110905,0.186918,0.810953,
 };
 
-int TestVolumeRayCastMapperWithOcclusionSpcetrum (int, char**)
+double const os_opacity [2] =
+{
+ 0,
+ 1,
+};
+
+#include <algorithm>
+#include <numeric>
+#include <iterator>
+int TestVolumeRayCastMapperWithOcclusionSpectrum (int argc, char** argv)
 {
   vsp(Renderer,ren);
   vsp(RenderWindow,win);
   vsp(RenderWindowInteractor,ict);
     win->AddRenderer(ren);
     win->SetInteractor(ict);
-    ict->SetWindow(win);
+    ict->SetRenderWindow(win);
 
     ren->SetBackground(.2,.2,.2);
     // win->FullScreenOn();
-    ict->SetInteractorStyle(vsp(InteractorStyleTrackballCamera));
+    ict->SetInteractorStyle(vsptype(InteractorStyleTrackballCamera)::New());
 
   // Volume center and bounds
   double center [3] = {0};
@@ -574,19 +590,20 @@ int TestVolumeRayCastMapperWithOcclusionSpcetrum (int, char**)
   ren->AddActor(assembly);
 
   // Volume reader
-  vsp(RawImageReader,reader);
-    reader->SetFileName();
-    reader->SetFilePrefix("engine.img");
-    reader->SetFilePattern("%s");
+  char* fname = 0;
+  vsp(ImageReader2,reader);
+    fname = vtkTestUtilities::ExpandDataFileName(argc,argv,"Data/engine.img");
+    reader->SetFileName(fname);
     reader->SetDataByteOrderToLittleEndian();
     reader->SetFileDimensionality(3);
     reader->SetDataOrigin(0,0,0);
     reader->SetDataSpacing(.1,.1,.1);
     reader->SetDataExtent(0,255,0,255,0,109);
-    reader->SetDataScalarTypeToUnsignedInt();
+    reader->SetDataScalarTypeToUnsignedChar();
     reader->SetNumberOfScalarComponents(1);
     reader->FileLowerLeftOn();
     reader->Update();
+    delete [] fname; fname = 0;
 
     reader->GetOutput()->GetBounds(bounds);
     reader->GetOutput()->GetCenter(center);
@@ -600,15 +617,47 @@ int TestVolumeRayCastMapperWithOcclusionSpcetrum (int, char**)
   mapper->SetInputConnection(reader->GetOutputPort());
   actor->SetMapper(mapper);
   assembly->AddPart(actor);
-  mapper->SetVolumeRayCastFunction(vsp(VolumeRayCastCompositeFunction));
+  mapper->SetVolumeRayCastFunction(vsptype(VolumeRayCastCompositeFunction)::New());
 
-  mapper->SetSampleDistance(1);
-  mapper->SetImageSampleDistance(1);
+  mapper->SetSampleDistance(.1);
 
-  // Occlusion Spectrum
-  vsp(ImageOcclussionSpectrum,os);
-  os->SetInputConnection(reader->GetOutputPort());
-  mapper->SetOcclusionSpectrum(os->GetOutputPort());
+  // {
+  // vsp(ImageOcclusionSpectrum,osfilter);
+  // osfilter->SetInputConnection(reader->GetOutputPort());
+  // osfilter->SetRadius(1);
+  // osfilter->Update();
+
+  // fname = vtkTestUtilities::ExpandDataFileName(argc,argv,"Data/engine.os");
+  // vtkstd::ofstream ofs(fname, vtkstd::ios::binary);
+  // if (!ofs)
+  //   {
+  //   return 1;
+  //   }
+  // delete [] fname; fname = 0;
+  // ofs.write((char const*)osfilter->GetOutput()->GetScalarPointer(),
+  //           256*256*110*sizeof(double));
+  // }
+
+  // Occlusion Spectrum reader
+  vsp(ImageReader2,os);
+    fname = vtkTestUtilities::ExpandDataFileName(argc,argv,"Data/engine.os");
+    os->SetFileName(fname);
+    os->SetDataByteOrderToLittleEndian();
+    os->SetFileDimensionality(3);
+    os->SetDataOrigin(0,0,0);
+    os->SetDataSpacing(.1,.1,.1);
+    os->SetDataExtent(0,255,0,255,0,109);
+    os->SetDataScalarTypeToDouble();
+    os->SetNumberOfScalarComponents(1);
+    os->FileLowerLeftOn();
+    os->Update();
+    delete [] fname; fname = 0;
+  mapper->SetOcclusionSpectrum(os->GetOutput());
+
+  double const* data = (double*)os->GetOutput()->GetScalarPointer();
+  size_t const  num  = 256*256*110;
+  cout << std::accumulate(data,data+num,0.0)/num << endl;
+  cout <<*std::max_element(data,data+num) << endl;
 
   vtkVolumeProperty* property = actor->GetProperty();
   property->SetShade(0);
@@ -625,14 +674,22 @@ int TestVolumeRayCastMapperWithOcclusionSpcetrum (int, char**)
 
   // Scalar opacity transfer function
   vsp(PiecewiseFunction,sotf);
-  for (size_t i = 0; i != 256; ++i)
+  for (int i = 0; i != 256; ++i)
     {
     sotf->AddPoint(i, (opacity[i][0]+opacity[i][1]+opacity[i][2])/3);
     }
   property->SetScalarOpacity(sotf);
 
   // Occlusion Spectrum transfer function
-  // property->SetOcclusionSpectrumOpacity(reader->GetScalarOpacityFunction());
+  vsp(PiecewiseFunction,ostf);
+  // for (int i = 0; i != 256; ++i)
+  //   {
+  //   ostf->AddPoint(i, os_opacity[i]);
+  //   // ostf->AddPoint(i, i);
+  //   }
+  ostf->AddPoint(0,0);
+  ostf->AddPoint(30,1);
+  property->SetOcclusionSpectrumOpacity(ostf);
   }
 
   // Outline
@@ -667,5 +724,6 @@ int TestVolumeRayCastMapperWithOcclusionSpcetrum (int, char**)
 
   ict->Initialize();
   ict->Start();
+
   return 0;
 }
