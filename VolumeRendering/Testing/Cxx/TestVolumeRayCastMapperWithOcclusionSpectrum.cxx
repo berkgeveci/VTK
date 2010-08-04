@@ -12,19 +12,13 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkAssembly.h"
-#include "vtkAxesActor.h"
 #include "vtkColorTransferFunction.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkImageData.h"
 #include "vtkImageOcclusionSpectrum.h"
 #include "vtkImageReader2.h"
 #include "vtkInteractorStyleTrackballCamera.h"
-#include "vtkLODActor.h"
-#include "vtkOutlineFilter.h"
 #include "vtkPiecewiseFunction.h"
-#include "vtkPolyDataMapper.h"
-#include "vtkProperty.h"
 #include "vtkRenderer.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
@@ -33,7 +27,6 @@
 #include "vtkVolumeProperty.h"
 #include "vtkVolumeRayCastCompositeFunction.h"
 #include "vtkVolumeRayCastMapper.h"
-#include "vtkVolumeRayCastMIPFunction.h"
 #include "vtkTestUtilities.h"
 
 #define vsptype(type)   vtkSmartPointer<vtk##type>
@@ -559,15 +552,6 @@ double const color [256][3] =
   0.110905,0.186918,0.810953,
 };
 
-double const os_opacity [2] =
-{
- 0,
- 1,
-};
-
-#include <algorithm>
-#include <numeric>
-#include <iterator>
 int TestVolumeRayCastMapperWithOcclusionSpectrum (int argc, char** argv)
 {
   vsp(Renderer,ren);
@@ -578,16 +562,7 @@ int TestVolumeRayCastMapperWithOcclusionSpectrum (int argc, char** argv)
     ict->SetRenderWindow(win);
 
     ren->SetBackground(.2,.2,.2);
-    // win->FullScreenOn();
     ict->SetInteractorStyle(vsptype(InteractorStyleTrackballCamera)::New());
-
-  // Volume center and bounds
-  double center [3] = {0};
-  double bounds [6] = {0};
-
-  // Assembly to glue volume and its outline together
-  vsp(Assembly,assembly);
-  ren->AddActor(assembly);
 
   // Volume reader
   char* fname = 0;
@@ -605,18 +580,13 @@ int TestVolumeRayCastMapperWithOcclusionSpectrum (int argc, char** argv)
     reader->Update();
     delete [] fname; fname = 0;
 
-    reader->GetOutput()->GetBounds(bounds);
-    reader->GetOutput()->GetCenter(center);
-  assembly->AddPosition(-center[0],-center[1],-center[2]);
-
   // Volume renderer
-  {
   vsp(VolumeRayCastMapper,mapper);
   vsp(Volume,actor);
 
   mapper->SetInputConnection(reader->GetOutputPort());
   actor->SetMapper(mapper);
-  assembly->AddPart(actor);
+  ren->AddActor(actor);
   mapper->SetVolumeRayCastFunction(vsptype(VolumeRayCastCompositeFunction)::New());
 
   mapper->SetSampleDistance(.1);
@@ -654,11 +624,6 @@ int TestVolumeRayCastMapperWithOcclusionSpectrum (int argc, char** argv)
     delete [] fname; fname = 0;
   mapper->SetOcclusionSpectrum(os->GetOutput());
 
-  double const* data = (double*)os->GetOutput()->GetScalarPointer();
-  size_t const  num  = 256*256*110;
-  cout << std::accumulate(data,data+num,0.0)/num << endl;
-  cout <<*std::max_element(data,data+num) << endl;
-
   vtkVolumeProperty* property = actor->GetProperty();
   property->SetShade(0);
   property->SetScalarOpacityUnitDistance(.1);
@@ -682,45 +647,9 @@ int TestVolumeRayCastMapperWithOcclusionSpectrum (int argc, char** argv)
 
   // Occlusion Spectrum transfer function
   vsp(PiecewiseFunction,ostf);
-  // for (int i = 0; i != 256; ++i)
-  //   {
-  //   ostf->AddPoint(i, os_opacity[i]);
-  //   // ostf->AddPoint(i, i);
-  //   }
   ostf->AddPoint(0,0);
   ostf->AddPoint(30,1);
   property->SetOcclusionSpectrumOpacity(ostf);
-  }
-
-  // Outline
-  {
-  vsp(OutlineFilter,outline);
-  vsp(PolyDataMapper,mapper);
-  vsp(LODActor,actor);
-
-  outline->SetInputConnection(reader->GetOutputPort());
-  mapper->SetInputConnection(outline->GetOutputPort());
-  actor->SetMapper(mapper);
-  assembly->AddPart(actor);
-
-  actor->GetProperty()->SetColor(1, 1, 1);
-  }
-
-  // Axes
-  {
-  vsp(AxesActor,axes);
-  ren->AddActor(axes);
-
-  axes->AxisLabelsOff();
-  axes->SetTotalLength(.6 * (bounds[1]-bounds[0]),
-                       .6 * (bounds[3]-bounds[2]),
-                       .6 * (bounds[5]-bounds[4]));
-  axes->SetNormalizedTipLength(.2, .2, .2);
-  axes->SetConeRadius(.15);
-  axes->SetNormalizedShaftLength(.8, .8, .8);
-  axes->SetShaftTypeToCylinder();
-  axes->SetCylinderRadius(.01);
-  }
 
   ict->Initialize();
   ict->Start();
