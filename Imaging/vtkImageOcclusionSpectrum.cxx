@@ -244,12 +244,6 @@ void vtkImageOcclusionSpectrum::ThreadedRequestData
  vtkImageData*** inData, vtkImageData** outData,
  int outExt [6], int threadId)
 {
-  if (0 == this->Radius)
-    {
-    vtkErrorMacro("Execute: Radius must not be 0");
-    return;
-    }
-
   // Get the input and output data objects.
   vtkImageData* input  = **inData;
   vtkImageData* output = *outData;
