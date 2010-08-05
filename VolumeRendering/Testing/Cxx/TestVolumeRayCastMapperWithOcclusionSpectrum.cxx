@@ -587,26 +587,12 @@ int TestVolumeRayCastMapperWithOcclusionSpectrum (int argc, char** argv)
   mapper->SetInputConnection(reader->GetOutputPort());
   actor->SetMapper(mapper);
   ren->AddActor(actor);
-  mapper->SetVolumeRayCastFunction(vsptype(VolumeRayCastCompositeFunction)::New());
+
+  vsp(VolumeRayCastCompositeFunction,cast);
+  cast->SetCompositeMethodToInterpolateFirst();
+  mapper->SetVolumeRayCastFunction(cast);
 
   mapper->SetSampleDistance(.1);
-
-  // {
-  // vsp(ImageOcclusionSpectrum,osfilter);
-  // osfilter->SetInputConnection(reader->GetOutputPort());
-  // osfilter->SetRadius(1);
-  // osfilter->Update();
-
-  // fname = vtkTestUtilities::ExpandDataFileName(argc,argv,"Data/engine.os");
-  // vtkstd::ofstream ofs(fname, vtkstd::ios::binary);
-  // if (!ofs)
-  //   {
-  //   return 1;
-  //   }
-  // delete [] fname; fname = 0;
-  // ofs.write((char const*)osfilter->GetOutput()->GetScalarPointer(),
-  //           256*256*110*sizeof(double));
-  // }
 
   // Occlusion Spectrum reader
   vsp(ImageReader2,os);
