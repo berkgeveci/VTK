@@ -46,7 +46,9 @@ void vtkCastRay_NN_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *dynamicIn
   int             voxel[3];
   float           ray_position[3];
   int             prev_voxel[3];
+  double          *osptr = 0; // occlusion spectrum pointer
   float           *SOTF;
+  float           *OSTF = 0; // occlusion spectrum transfer function
   float           *CTF;
   float           *GTF;
   float           *GOTF;
@@ -65,6 +67,11 @@ void vtkCastRay_NN_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *dynamicIn
   CTF  =  staticInfo->Volume->GetRGBArray();
   GTF  =  staticInfo->Volume->GetGrayArray();
   GOTF =  staticInfo->Volume->GetGradientOpacityArray();
+
+  // Get the occlusion spectrum opacity transfer function which maps occlusion
+  // spectrum input values to opacities
+  OSTF =  staticInfo->Volume->GetCorrectedOcclusionSpectrumOpacityArray();
+  osptr=  (double*)staticInfo->OcclusionSpectrumDataPointer;
 
   // Get the gradient opacity constant. If this number is greater than
   // or equal to 0.0, then the gradient opacity transfer function is
@@ -126,6 +133,15 @@ void vtkCastRay_NN_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *dynamicIn
         value = *(data_ptr + offset);
         opacity = SOTF[value];
 
+        // Compute occlusion spectrum for this sample
+        if (osptr)
+          {
+          // Assume the occlusion spectrum volume has exactly the same shape as
+          // that of the input scalar volume
+          double occlusion_spectrum_value = osptr[offset];
+          opacity *= OSTF[(int)(occlusion_spectrum_value)];
+          }
+
         if ( opacity )
           {
           if ( grad_op_is_constant )
@@ -178,6 +194,15 @@ void vtkCastRay_NN_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *dynamicIn
         offset = voxel[2] * zinc + voxel[1] * yinc + voxel[0] * xinc;
         value = *(data_ptr + offset);
         opacity = SOTF[value];
+
+        // Compute occlusion spectrum for this sample
+        if (osptr)
+          {
+          // Assume the occlusion spectrum volume has exactly the same shape as
+          // that of the input scalar volume
+          double occlusion_spectrum_value = osptr[offset];
+          opacity *= OSTF[(int)(occlusion_spectrum_value)];
+          }
 
         if ( opacity )
           {
@@ -267,7 +292,9 @@ void vtkCastRay_NN_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *dynamicInfo
   int             voxel[3];
   float           ray_position[3];
   int             prev_voxel[3];
+  double          *osptr = 0; // occlusion spectrum pointer
   float           *SOTF;
+  float           *OSTF = 0; // occlusion spectrum transfer function
   float           *CTF;
   float           *GTF;
   float           *GOTF;
@@ -304,6 +331,11 @@ void vtkCastRay_NN_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *dynamicInfo
   // Get the scalar opacity transfer function for this volume (which maps
   // scalar input values to opacities)
   SOTF =  staticInfo->Volume->GetCorrectedScalarOpacityArray();
+
+  // Get the occlusion spectrum opacity transfer function which maps occlusion
+  // spectrum input values to opacities
+  OSTF =  staticInfo->Volume->GetCorrectedOcclusionSpectrumOpacityArray();
+  osptr=  (double*)staticInfo->OcclusionSpectrumDataPointer;
 
   // Get the color transfer function for this volume (which maps
   // scalar input values to RGB values)
@@ -374,6 +406,15 @@ void vtkCastRay_NN_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *dynamicInfo
       
         // Get the opacity contributed by the scalar opacity transfer function
         opacity = SOTF[value];
+
+        // Compute occlusion spectrum for this sample
+        if (osptr)
+          {
+          // Assume the occlusion spectrum volume has exactly the same shape as
+          // that of the input scalar volume
+          double occlusion_spectrum_value = osptr[offset];
+          opacity *= OSTF[(int)(occlusion_spectrum_value)];
+          }
 
         // Multiply by the opacity contributed by the gradient magnitude
         // transfer function (don't both if opacity is already 0)
@@ -446,6 +487,15 @@ void vtkCastRay_NN_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *dynamicInfo
       
         // Get the opacity contributed by the scalar opacity transfer function
         opacity = SOTF[value];
+
+        // Compute occlusion spectrum for this sample
+        if (osptr)
+          {
+          // Assume the occlusion spectrum volume has exactly the same shape as
+          // that of the input scalar volume
+          double occlusion_spectrum_value = osptr[offset];
+          opacity *= OSTF[(int)(occlusion_spectrum_value)];
+          }
 
         // Multiply by the opacity contributed by the gradient magnitude
         // transfer function (don't both if opacity is already 0)
@@ -559,7 +609,7 @@ void vtkCastRay_TrilinSample_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
   T               *dptr;
   double          *osptr = 0; // occlusion spectrum pointer
   float           *SOTF;
-  float           *OSTF = 0;
+  float           *OSTF = 0; // occlusion spectrum transfer function
   float           *CTF;
   float           *GTF;
   float           *GOTF;
@@ -972,7 +1022,9 @@ void vtkCastRay_TrilinSample_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *d
   float           final_rs, final_gs, final_bs;
   int             Binc, Cinc, Dinc, Einc, Finc, Ginc, Hinc;
   T               *dptr;
+  double          *osptr = 0; // occlusion spectrum pointer
   float           *SOTF;
+  float           *OSTF = 0; // occlusion spectrum transfer function
   float           *CTF;
   float           *GTF;
   float           *GOTF;
@@ -1014,6 +1066,11 @@ void vtkCastRay_TrilinSample_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *d
   // Get the scalar opacity transfer function which maps scalar input values
   // to opacities
   SOTF =  staticInfo->Volume->GetCorrectedScalarOpacityArray();
+
+  // Get the occlusion spectrum opacity transfer function which maps occlusion
+  // spectrum input values to opacities
+  OSTF =  staticInfo->Volume->GetCorrectedOcclusionSpectrumOpacityArray();
+  osptr=  (double*)staticInfo->OcclusionSpectrumDataPointer;
 
   // Get the color transfer function which maps scalar input values
   // to RGB values
@@ -1122,6 +1179,33 @@ void vtkCastRay_TrilinSample_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *d
         }
       
       opacity = SOTF[scalar_value];
+
+      // Compute occlusion spectrum for this sample
+      if (osptr)
+        {
+        // Assume the occlusion spectrum volume has exactly the same shape as
+        // that of the input scalar volume
+        double occlusion_spectrum_value =
+          osptr[offset     ] * t1 * t2 * t3 +
+          osptr[offset+Binc] *  x * t2 * t3 +
+          osptr[offset+Cinc] * t1 *  y * t3 +
+          osptr[offset+Dinc] *  x *  y * t3 +
+          osptr[offset+Einc] * t1 * t2 *  z +
+          osptr[offset+Finc] *  x * t2 *  z +
+          osptr[offset+Ginc] * t1 *  y *  z +
+          osptr[offset+Hinc] *  x *  y *  z;
+
+        if (occlusion_spectrum_value < 0.0)
+          {
+          occlusion_spectrum_value = 0.0;
+          }
+        else if (occlusion_spectrum_value > staticInfo->Volume->GetArraySize()-1)
+          {
+          occlusion_spectrum_value = staticInfo->Volume->GetArraySize() - 1;
+          }
+
+        opacity *= OSTF[(int)(occlusion_spectrum_value)];
+        }
 
       // If we have some opacity based on the scalar value transfer function,
       // then multiply by the opacity from the gradient magnitude transfer
@@ -1264,6 +1348,33 @@ void vtkCastRay_TrilinSample_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo *d
       
       opacity = SOTF[scalar_value];
       
+      // Compute occlusion spectrum for this sample
+      if (osptr)
+        {
+        // Assume the occlusion spectrum volume has exactly the same shape as
+        // that of the input scalar volume
+        double occlusion_spectrum_value =
+          osptr[offset     ] * t1 * t2 * t3 +
+          osptr[offset+Binc] *  x * t2 * t3 +
+          osptr[offset+Cinc] * t1 *  y * t3 +
+          osptr[offset+Dinc] *  x *  y * t3 +
+          osptr[offset+Einc] * t1 * t2 *  z +
+          osptr[offset+Finc] *  x * t2 *  z +
+          osptr[offset+Ginc] * t1 *  y *  z +
+          osptr[offset+Hinc] *  x *  y *  z;
+
+        if (occlusion_spectrum_value < 0.0)
+          {
+          occlusion_spectrum_value = 0.0;
+          }
+        else if (occlusion_spectrum_value > staticInfo->Volume->GetArraySize()-1)
+          {
+          occlusion_spectrum_value = staticInfo->Volume->GetArraySize() - 1;
+          }
+
+        opacity *= OSTF[(int)(occlusion_spectrum_value)];
+        }
+
       if ( opacity )
         {
           if ( !grad_op_is_constant )
@@ -1427,9 +1538,12 @@ void vtkCastRay_TrilinVertices_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInf
   int             prev_voxel[3];
   float           A, B, C, D, E, F, G, H;
   float           Ago, Bgo, Cgo, Dgo, Ego, Fgo, Ggo, Hgo;
+  float           Aos, Bos, Cos, Dos, Eos, Fos, Gos, Hos; // occlusion spectrum
   int             Binc, Cinc, Dinc, Einc, Finc, Ginc, Hinc;
   T               *dptr;
+  double          *osptr = 0; // occlusion spectrum pointer
   float           *SOTF;
+  float           *OSTF = 0; // occlusion spectrum transfer function
   float           *CTF;
   float           *GTF;
   float           *GOTF;
@@ -1449,6 +1563,11 @@ void vtkCastRay_TrilinVertices_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInf
   // Get the scalar opacity transfer function which maps scalar input values
   // to opacities
   SOTF =  staticInfo->Volume->GetCorrectedScalarOpacityArray();
+
+  // Get the occlusion spectrum opacity transfer function which maps occlusion
+  // spectrum input values to opacities
+  OSTF =  staticInfo->Volume->GetCorrectedOcclusionSpectrumOpacityArray();
+  osptr=  (double*)staticInfo->OcclusionSpectrumDataPointer;
 
   // Get the color transfer function which maps scalar input values
   // to RGB colors
@@ -1529,6 +1648,23 @@ void vtkCastRay_TrilinVertices_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInf
     Ago = Bgo = Cgo = Dgo = Ego = Fgo = Ggo = Hgo = 1.0;
     }
 
+  // Add in occlusion spectrum if necessary
+  if (osptr)
+    {
+    Aos = OSTF[(int)osptr[offset]];
+    Bos = OSTF[(int)osptr[offset + Binc]];
+    Cos = OSTF[(int)osptr[offset + Cinc]];
+    Dos = OSTF[(int)osptr[offset + Dinc]];
+    Eos = OSTF[(int)osptr[offset + Einc]];
+    Fos = OSTF[(int)osptr[offset + Finc]];
+    Gos = OSTF[(int)osptr[offset + Ginc]];
+    Hos = OSTF[(int)osptr[offset + Hinc]];
+    }
+  else
+    {
+    Aos = Bos = Cos = Dos = Eos = Fos = Gos = Hos = 1.0;
+    }
+
   // Keep track of previous voxel to know when we step into a new one  
   prev_voxel[0] = voxel[0];
   prev_voxel[1] = voxel[1];
@@ -1580,6 +1716,23 @@ void vtkCastRay_TrilinVertices_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInf
             Ago = Bgo = Cgo = Dgo = Ego = Fgo = Ggo = Hgo = 1.0;
           }
 
+        // Add in occlusion spectrum if necessary
+        if (osptr)
+          {
+          Aos = OSTF[(int)osptr[offset]];
+          Bos = OSTF[(int)osptr[offset + Binc]];
+          Cos = OSTF[(int)osptr[offset + Cinc]];
+          Dos = OSTF[(int)osptr[offset + Dinc]];
+          Eos = OSTF[(int)osptr[offset + Einc]];
+          Fos = OSTF[(int)osptr[offset + Finc]];
+          Gos = OSTF[(int)osptr[offset + Ginc]];
+          Hos = OSTF[(int)osptr[offset + Hinc]];
+          }
+        else
+          {
+          Aos = Bos = Cos = Dos = Eos = Fos = Gos = Hos = 1.0;
+          }
+
         prev_voxel[0] = voxel[0];
         prev_voxel[1] = voxel[1];
         prev_voxel[2] = voxel[2];
@@ -1602,58 +1755,58 @@ void vtkCastRay_TrilinVertices_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInf
       // Now add the opacity in vertex by vertex.  If any of the A-H
       // have a non-transparent opacity value, then add its contribution
       // to the opacity
-      if ( A && Ago )
+      if ( A && Ago && Aos)
         {
-        weight     = t1*t2*t3 * A * Ago;
+        weight     = t1*t2*t3 * A * Ago * Aos;
         opacity   += weight;
         red_value += weight * GTF[((*dptr))];
         }
       
-      if ( B && Bgo )
+      if ( B && Bgo && Bos)
         {
-        weight     = x*t2*t3 * B * Bgo;
+        weight     = x*t2*t3 * B * Bgo * Bos;
         opacity   += weight;
         red_value += weight * GTF[((*(dptr + Binc)))];
         }
       
-      if ( C && Cgo )
+      if ( C && Cgo && Cos)
         {
-        weight     = t1*y*t3 * C * Cgo;
+        weight     = t1*y*t3 * C * Cgo * Cos;
         opacity   += weight;
         red_value += weight * GTF[((*(dptr + Cinc)))];
         }
       
-      if ( D && Dgo )
+      if ( D && Dgo && Dos)
         {
-        weight     = x*y*t3 * D * Dgo;
+        weight     = x*y*t3 * D * Dgo * Dos;
         opacity   += weight;
         red_value += weight * GTF[((*(dptr + Dinc)))];
         }
       
-      if ( E && Ego )
+      if ( E && Ego && Eos)
         {
-        weight     = t1*t2*z * E * Ego; 
+        weight     = t1*t2*z * E * Ego * Eos;
         opacity   += weight;
         red_value += weight * GTF[((*(dptr + Einc)))];
         }
       
-      if ( F && Fgo )
+      if ( F && Fgo && Fos)
         {
-        weight     = x*t2*z * F * Fgo;
+        weight     = x*t2*z * F * Fgo * Fos;
         opacity   += weight;
         red_value += weight * GTF[((*(dptr + Finc)))];
         }
       
-      if ( G && Ggo )
+      if ( G && Ggo && Gos)
         {
-        weight     = t1*y*z * G * Ggo;
+        weight     = t1*y*z * G * Ggo * Gos;
         opacity   += weight;
         red_value += weight * GTF[((*(dptr + Ginc)))];
         } 
       
-      if ( H && Hgo )
+      if ( H && Hgo && Hos)
         {
-        weight     = x*z*y * H * Hgo;
+        weight     = x*z*y * H * Hgo * Hos;
         opacity   += weight;
         red_value += weight * GTF[((*(dptr + Hinc)))];
         }
@@ -1717,6 +1870,23 @@ void vtkCastRay_TrilinVertices_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInf
             Ago = Bgo = Cgo = Dgo = Ego = Fgo = Ggo = Hgo = 1.0;
           }
 
+        // Add in occlusion spectrum if necessary
+        if (osptr)
+          {
+          Aos = OSTF[(int)osptr[offset]];
+          Bos = OSTF[(int)osptr[offset + Binc]];
+          Cos = OSTF[(int)osptr[offset + Cinc]];
+          Dos = OSTF[(int)osptr[offset + Dinc]];
+          Eos = OSTF[(int)osptr[offset + Einc]];
+          Fos = OSTF[(int)osptr[offset + Finc]];
+          Gos = OSTF[(int)osptr[offset + Ginc]];
+          Hos = OSTF[(int)osptr[offset + Hinc]];
+          }
+        else
+          {
+          Aos = Bos = Cos = Dos = Eos = Fos = Gos = Hos = 1.0;
+          }
+
         prev_voxel[0] = voxel[0];
         prev_voxel[1] = voxel[1];
         prev_voxel[2] = voxel[2];
@@ -1741,72 +1911,72 @@ void vtkCastRay_TrilinVertices_Unshaded( T *data_ptr, vtkVolumeRayCastDynamicInf
       // Now add the opacity in vertex by vertex.  If any of the A-H
       // have a non-transparent opacity value, then add its contribution
       // to the opacity
-      if ( A && Ago )
+      if ( A && Ago && Aos)
         {
-        weight         = t1*t2*t3 * A * Ago;
+        weight         = t1*t2*t3 * A * Ago * Aos;
         opacity       += weight;
         red_value     += weight * CTF[((*dptr)) * 3    ];
         green_value   += weight * CTF[((*dptr)) * 3 + 1];
         blue_value    += weight * CTF[((*dptr)) * 3 + 2];
         }
       
-      if ( B && Bgo )
+      if ( B && Bgo && Aos)
         {
-        weight         = x*t2*t3 * B * Bgo;
+        weight         = x*t2*t3 * B * Bgo * Aos;
         opacity       += weight;
         red_value     += weight * CTF[((*(dptr + Binc))) * 3    ];
         green_value   += weight * CTF[((*(dptr + Binc))) * 3 + 1];
         blue_value    += weight * CTF[((*(dptr + Binc))) * 3 + 2];
         }
       
-      if ( C && Cgo )
+      if ( C && Cgo && Cos)
         {
-        weight         = t1*y*t3 * C * Cgo;
+        weight         = t1*y*t3 * C * Cgo * Cos;
         opacity       += weight;
         red_value     += weight * CTF[((*(dptr + Cinc))) * 3    ];
         green_value   += weight * CTF[((*(dptr + Cinc))) * 3 + 1];
         blue_value    += weight * CTF[((*(dptr + Cinc))) * 3 + 2];
         }
       
-      if ( D && Dgo )
+      if ( D && Dgo && Dos)
         {
-        weight         = x*y*t3 * D * Dgo;
+        weight         = x*y*t3 * D * Dgo * Dos;
         opacity       += weight;
         red_value     += weight * CTF[((*(dptr + Dinc))) * 3    ];
         green_value   += weight * CTF[((*(dptr + Dinc))) * 3 + 1];
         blue_value    += weight * CTF[((*(dptr + Dinc))) * 3 + 2];
         }
       
-      if ( E && Ego )
+      if ( E && Ego && Eos)
         {
-        weight         = t1*t2*z * E * Ego;
+        weight         = t1*t2*z * E * Ego * Eos;
         opacity       += weight;
         red_value     += weight * CTF[((*(dptr + Einc))) * 3    ];
         green_value   += weight * CTF[((*(dptr + Einc))) * 3 + 1];
         blue_value    += weight * CTF[((*(dptr + Einc))) * 3 + 2];
         }
       
-      if ( F && Fgo )
+      if ( F && Fgo && Fos)
         {
-        weight         = x*t2*z * F * Fgo;
+        weight         = x*t2*z * F * Fgo * Fos;
         opacity       += weight;
         red_value     += weight * CTF[((*(dptr + Finc))) * 3    ];
         green_value   += weight * CTF[((*(dptr + Finc))) * 3 + 1];
         blue_value    += weight * CTF[((*(dptr + Finc))) * 3 + 2];
         }
       
-      if ( G && Ggo )
+      if ( G && Ggo && Gos)
         {
-        weight         = t1*y*z * G * Ggo;
+        weight         = t1*y*z * G * Ggo * Gos;
         opacity       += weight;
         red_value     +=  weight * CTF[((*(dptr + Ginc))) * 3    ];
         green_value   +=  weight * CTF[((*(dptr + Ginc))) * 3 + 1];
         blue_value    +=  weight * CTF[((*(dptr + Ginc))) * 3 + 2];
         } 
       
-      if ( H && Hgo )
+      if ( H && Hgo && Hos)
         {
-        weight         = x*z*y * H * Hgo;
+        weight         = x*z*y * H * Hgo * Hos;
         opacity       += weight;
         red_value     += weight * CTF[((*(dptr + Hinc))) * 3    ];
         green_value   += weight * CTF[((*(dptr + Hinc))) * 3 + 1];
@@ -1882,9 +2052,12 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
   int             prev_voxel[3];
   float           A, B, C, D, E, F, G, H;
   float           Ago, Bgo, Cgo, Dgo, Ego, Fgo, Ggo, Hgo;
+  float           Aos, Bos, Cos, Dos, Eos, Fos, Gos, Hos; // occlusion spectrum
   int             Binc, Cinc, Dinc, Einc, Finc, Ginc, Hinc;
   T               *dptr;
+  double          *osptr = 0; // occlusion spectrum pointer
   float           *SOTF;
+  float           *OSTF = 0; // occlusion spectrum transfer function
   float           *CTF;
   float           *GTF;
   float           *GOTF;
@@ -1923,6 +2096,11 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
   // Get the scalar opacity transfer function which maps scalar input values
   // to opacities
   SOTF =  staticInfo->Volume->GetCorrectedScalarOpacityArray();
+
+  // Get the occlusion spectrum opacity transfer function which maps occlusion
+  // spectrum input values to opacities
+  OSTF =  staticInfo->Volume->GetCorrectedOcclusionSpectrumOpacityArray();
+  osptr=  (double*)staticInfo->OcclusionSpectrumDataPointer;
 
   // Get the color transfer function which maps scalar input values
   // to RGB values
@@ -2004,6 +2182,22 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
     Ago = Bgo = Cgo = Dgo = Ego = Fgo = Ggo = Hgo = 1.0;
     }
 
+  // Add in occlusion spectrum if necessary
+  if (osptr)
+    {
+    Aos = OSTF[(int)osptr[offset]];
+    Bos = OSTF[(int)osptr[offset + Binc]];
+    Cos = OSTF[(int)osptr[offset + Cinc]];
+    Dos = OSTF[(int)osptr[offset + Dinc]];
+    Eos = OSTF[(int)osptr[offset + Einc]];
+    Fos = OSTF[(int)osptr[offset + Finc]];
+    Gos = OSTF[(int)osptr[offset + Ginc]];
+    Hos = OSTF[(int)osptr[offset + Hinc]];
+    }
+  else
+    {
+    Aos = Bos = Cos = Dos = Eos = Fos = Gos = Hos = 1.0;
+    }
 
   // Keep track of previous voxel to know when we step into a new one   
   prev_voxel[0] = voxel[0];
@@ -2058,6 +2252,23 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
           Ago = Bgo = Cgo = Dgo = Ego = Fgo = Ggo = Hgo = 1.0;
           }
 
+        // Add in occlusion spectrum if necessary
+        if (osptr)
+          {
+          Aos = OSTF[(int)osptr[offset]];
+          Bos = OSTF[(int)osptr[offset + Binc]];
+          Cos = OSTF[(int)osptr[offset + Cinc]];
+          Dos = OSTF[(int)osptr[offset + Dinc]];
+          Eos = OSTF[(int)osptr[offset + Einc]];
+          Fos = OSTF[(int)osptr[offset + Finc]];
+          Gos = OSTF[(int)osptr[offset + Ginc]];
+          Hos = OSTF[(int)osptr[offset + Hinc]];
+          }
+        else
+          {
+          Aos = Bos = Cos = Dos = Eos = Fos = Gos = Hos = 1.0;
+          }
+
         prev_voxel[0] = voxel[0];
         prev_voxel[1] = voxel[1];
         prev_voxel[2] = voxel[2];
@@ -2081,72 +2292,72 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
       // Now add the opacity and shaded intensity value in vertex by 
       // vertex.  If any of the A-H have a non-transparent opacity value, 
       // then add its contribution to the opacity
-      if ( A && Ago )
+      if ( A && Ago && Aos)
         {
-        weight = t1*t2*t3 * A * Ago;
+        weight = t1*t2*t3 * A * Ago * Aos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr) ] * 
                                      GTF[*(dptr)] + 
                                      red_s_shade[ *(nptr) ] );
         }
       
-      if ( B && Bgo )
+      if ( B && Bgo && Bos)
         {
-        weight = x*t2*t3 * B * Bgo;
+        weight = x*t2*t3 * B * Bgo * Bos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Binc) ] * 
                                      GTF[*(dptr+Binc)] + 
                                      red_s_shade[ *(nptr + Binc) ] );
         }
       
-      if ( C && Cgo )
+      if ( C && Cgo && Cos)
         {
-        weight = t1*y*t3 * C * Cgo;
+        weight = t1*y*t3 * C * Cgo * Cos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Cinc) ] *
                                      GTF[*(dptr+Cinc)] + 
                                      red_s_shade[ *(nptr + Cinc) ] );
         }
 
-      if ( D && Dgo )
+      if ( D && Dgo && Dos)
         {
-        weight = x*y*t3 * D * Dgo;
+        weight = x*y*t3 * D * Dgo * Dos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Dinc) ] *
                                      GTF[*(dptr+Dinc)] + 
                                      red_s_shade[ *(nptr + Dinc) ] );
         }
       
-      if ( E && Ego )
+      if ( E && Ego && Eos)
         {
-        weight = t1*t2*z * E * Ego;
+        weight = t1*t2*z * E * Ego * Eos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Einc) ] *
                                      GTF[*(dptr+Einc)] + 
                                      red_s_shade[ *(nptr + Einc) ] );
         }
       
-      if ( F && Fgo )
+      if ( F && Fgo && Fos)
         {
-        weight = x*z*t2 * F * Fgo;
+        weight = x*z*t2 * F * Fgo * Fos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Finc) ] *
                                      GTF[*(dptr+Finc)] + 
                                      red_s_shade[ *(nptr + Finc) ] );
         }
       
-      if ( G && Ggo )
+      if ( G && Ggo && Gos)
         {
-        weight = t1*y*z * G * Ggo;
+        weight = t1*y*z * G * Ggo * Gos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Ginc) ] *
                                      GTF[*(dptr+Ginc)] + 
                                      red_s_shade[ *(nptr + Ginc) ] );
       } 
       
-      if ( H && Hgo )
+      if ( H && Hgo && Hos)
         {
-        weight = x*z*y * H * Hgo;
+        weight = x*z*y * H * Hgo * Hos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Hinc) ] *
                                      GTF[*(dptr+Hinc)] + 
@@ -2213,6 +2424,23 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
           Ago = Bgo = Cgo = Dgo = Ego = Fgo = Ggo = Hgo = 1.0;
           }
 
+        // Add in occlusion spectrum if necessary
+        if (osptr)
+          {
+          Aos = OSTF[(int)osptr[offset]];
+          Bos = OSTF[(int)osptr[offset + Binc]];
+          Cos = OSTF[(int)osptr[offset + Cinc]];
+          Dos = OSTF[(int)osptr[offset + Dinc]];
+          Eos = OSTF[(int)osptr[offset + Einc]];
+          Fos = OSTF[(int)osptr[offset + Finc]];
+          Gos = OSTF[(int)osptr[offset + Ginc]];
+          Hos = OSTF[(int)osptr[offset + Hinc]];
+          }
+        else
+          {
+          Aos = Bos = Cos = Dos = Eos = Fos = Gos = Hos = 1.0;
+          }
+
         prev_voxel[0] = voxel[0];
         prev_voxel[1] = voxel[1];
         prev_voxel[2] = voxel[2];
@@ -2240,7 +2468,7 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
       // then add its contribution to the opacity
       if ( A )
         {
-        weight = t1*t2*t3 * A * Ago;
+        weight = t1*t2*t3 * A * Ago * Aos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr) ] * 
                                      CTF[*(dptr) * 3] + 
@@ -2255,7 +2483,7 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
       
       if ( B )
         {
-        weight = x*t2*t3 * B * Bgo;
+        weight = x*t2*t3 * B * Bgo * Bos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Binc) ] * 
                                      CTF[*(dptr+Binc) * 3] + 
@@ -2270,7 +2498,7 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
       
       if ( C )
         {
-        weight = t1*y*t3 * C * Cgo;
+        weight = t1*y*t3 * C * Cgo * Cos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Cinc) ] *
                                      CTF[*(dptr+Cinc) * 3] + 
@@ -2285,7 +2513,7 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
 
       if ( D )
         {
-        weight = x*y*t3 * D * Dgo;
+        weight = x*y*t3 * D * Dgo * Dos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Dinc) ] *
                                      CTF[*(dptr+Dinc) * 3] + 
@@ -2300,7 +2528,7 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
       
       if ( E )
         {
-        weight = t1*t2*z * E * Ego;
+        weight = t1*t2*z * E * Ego * Eos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Einc) ] *
                                      CTF[*(dptr+Einc) * 3] + 
@@ -2315,7 +2543,7 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
       
       if ( F )
         {
-        weight = x*z*t2 * F * Fgo;
+        weight = x*z*t2 * F * Fgo * Fos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Finc) ] *
                                      CTF[*(dptr+Finc) * 3] + 
@@ -2330,7 +2558,7 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
       
       if ( G )
         {
-        weight = t1*y*z * G * Ggo;
+        weight = t1*y*z * G * Ggo * Gos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Ginc) ] *
                                      CTF[*(dptr+Ginc) * 3] + 
@@ -2345,7 +2573,7 @@ void vtkCastRay_TrilinVertices_Shaded( T *data_ptr, vtkVolumeRayCastDynamicInfo 
       
       if ( H )
         {
-        weight = x*z*y * H * Hgo;
+        weight = x*z*y * H * Hgo * Hos;
         opacity += weight;
         red_shaded_value   += weight * ( red_d_shade[ *(nptr + Hinc) ] *
                                      CTF[*(dptr+Hinc) * 3] + 
