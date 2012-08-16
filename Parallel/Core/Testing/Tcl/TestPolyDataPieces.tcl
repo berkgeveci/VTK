@@ -38,7 +38,7 @@ mapper2 SetPiece 1
 mapper2 SetScalarRange 0 4
 mapper2 SetScalarModeToUseCellFieldData
 mapper2 SetColorModeToMapScalars
-mapper2 ColorByArrayComponent "vtkGhostLevels" 0
+mapper2 ColorByArrayComponent [vtkDataSetAttributes GhostArrayName] 0
 mapper2 SetGhostLevel 4
 
 # check the pipeline size

@@ -469,28 +469,18 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
     }
 
   // Avoid generating these if the producer has generated them.
-  if(!this->PointData->GetArray("vtkGhostLevels"))
-    { // Create ghost levels for cells and points.
-    vtkUnsignedCharArray *levels;
+  if(!this->PointData->GetArray(vtkDataSetAttributes::GhostArrayName()))
+    { // Set ghost types for cells and points.
+    vtkUnsignedCharArray *ghosts;
     int extent[6];
     int i, j, k, di, dj, dk, dist;
 
     this->Information->Get(vtkDataObject::DATA_EXTENT(), extent);
 
-    /*
-    // Get the extent with ghost level 0.
-    translator->SetWholeExtent(whole_extent);
-    translator->SetPiece(update_piece);
-    translator->SetNumberOfPieces(update_num_pieces);
-    translator->SetGhostLevel(0);
-    translator->PieceToExtent();
-    translator->GetExtent(zeroExt);
-    */
-
     // ---- POINTS ----
-    // Allocate the appropriate number levels (number of points).
-    levels = vtkUnsignedCharArray::New();
-    levels->Allocate((extent[1]-extent[0] + 1) *
+    // Allocate the appropriate ghost types.
+    ghosts = vtkUnsignedCharArray::New();
+    ghosts->Allocate((extent[1]-extent[0] + 1) *
                      (extent[3]-extent[2] + 1) *
                      (extent[5]-extent[4] + 1));
 
@@ -538,23 +528,23 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
             {
             dist = dk;
             }
-
-          //cerr << "   " << i << ", " << j << ", " << k << endl;
-          //cerr << "   " << di << ", " << dj << ", " << dk << endl;
-          //cerr << dist << endl;
-
-          levels->InsertNextValue(static_cast<unsigned char>(dist));
+          unsigned char value = 0;
+          if(dist > 0)
+            {
+            value |= vtkDataSetAttributes::DUPLICATEPOINT;
+            }
+          ghosts->InsertNextValue(value);
           }
         }
       }
-    levels->SetName("vtkGhostLevels");
-    this->PointData->AddArray(levels);
-    levels->Delete();
+    ghosts->SetName(vtkDataSetAttributes::GhostArrayName());
+    this->PointData->AddArray(ghosts);
+    ghosts->Delete();
 
     // ---- CELLS ----
-    // Allocate the appropriate number levels (number of cells).
-    levels = vtkUnsignedCharArray::New();
-    levels->Allocate((extent[1]-extent[0]) *
+    // Allocate the appropriate ghost types.
+    ghosts = vtkUnsignedCharArray::New();
+    ghosts->Allocate((extent[1]-extent[0]) *
                      (extent[3]-extent[2]) *
                      (extent[5]-extent[4]));
 
@@ -620,14 +610,18 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
             {
             dist = dk;
             }
-
-          levels->InsertNextValue(static_cast<unsigned char>(dist));
+          unsigned char value = 0;
+          if(dist > 0)
+            {
+            value |= vtkDataSetAttributes::DUPLICATECELL;
+            }
+          ghosts->InsertNextValue(value);
           }
         }
       }
-    levels->SetName("vtkGhostLevels");
-    this->CellData->AddArray(levels);
-    levels->Delete();
+    ghosts->SetName(vtkDataSetAttributes::GhostArrayName());
+    this->CellData->AddArray(ghosts);
+    ghosts->Delete();
     }
 
 }

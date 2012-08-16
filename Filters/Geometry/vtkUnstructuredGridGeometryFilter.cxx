@@ -839,7 +839,7 @@ int vtkUnstructuredGridGeometryFilter::RequestData(
   vtkDataArray *temp=0;
   if(cd!=0)
     {
-    temp=cd->GetArray("vtkGhostLevels");
+    temp=cd->GetArray(vtkDataSetAttributes::GhostArrayName());
     }
   if(temp!=0&&temp->GetDataType()==VTK_UNSIGNED_CHAR&&temp->GetNumberOfComponents()==1)
     {

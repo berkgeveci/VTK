@@ -1419,7 +1419,7 @@ void vtkTemporalFractal::AddGhostLevelArray(vtkDataSet *grid,
         }
       }
     }
-  array->SetName("vtkGhostLevels");
+  array->SetName(vtkDataSetAttributes::GhostArrayName());
   grid->GetCellData()->AddArray(array);
   array->Delete();
 }

@@ -1158,7 +1158,7 @@ vtkDataArray* vtkXdmfHeavyData::ReadAttribute(XdmfAttribute* xmfAttribute,
 
 //-----------------------------------------------------------------------------
 // Read ghost cell/point information. This is simply loaded info a
-// vtkGhostLevels attribute array.
+// vtkGhostType attribute array.
 bool vtkXdmfHeavyData::ReadGhostSets(vtkDataSet* dataSet, XdmfGrid* xmfGrid,
   int *vtkNotUsed(update_extents)/*=0*/)
 {
@@ -1194,11 +1194,11 @@ bool vtkXdmfHeavyData::ReadGhostSets(vtkDataSet* dataSet, XdmfGrid* xmfGrid,
       }
 
     vtkUnsignedCharArray* ghostLevels = vtkUnsignedCharArray::SafeDownCast(
-      dsa->GetArray("vtkGhostLevels"));
+      dsa->GetArray(vtkDataSetAttributes::GhostArrayName()));
     if (!ghostLevels)
       {
       ghostLevels = vtkUnsignedCharArray::New();
-      ghostLevels->SetName("vtkGhostLevels");
+      ghostLevels->SetName(vtkDataSetAttributes::GhostArrayName());
       ghostLevels->SetNumberOfComponents(1);
       ghostLevels->SetNumberOfTuples(numElems);
       ghostLevels->FillComponent(0, 0);

@@ -131,7 +131,7 @@ int vtkApproximatingSubdivisionFilter::RequestData(
   vtkCellData* cd = inputDS->GetCellData();
   if (cd)
     {
-    vtkDataArray* temp = cd->GetArray("vtkGhostLevels");
+    vtkDataArray* temp = cd->GetArray(vtkDataSetAttributes::GhostArrayName());
     if (temp)
       {
       ghostLevels = static_cast<vtkUnsignedCharArray*>(temp)->GetPointer(0);
@@ -143,11 +143,6 @@ int vtkApproximatingSubdivisionFilter::RequestData(
   output->SetPoints(inputDS->GetPoints());
   output->SetPolys(inputDS->GetPolys());
   output->CopyAttributes(inputDS);
-
-  if (input->GetGhostLevel() > updateGhostLevel && ghostLevels != NULL)
-    {
-    output->RemoveGhostCells(updateGhostLevel+1);
-    }
 
   inputDS->Delete();
 

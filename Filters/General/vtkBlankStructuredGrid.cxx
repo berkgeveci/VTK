@@ -48,7 +48,7 @@ template <class T>
 void vtkBlankStructuredGridExecute(vtkBlankStructuredGrid *vtkNotUsed(self),
                                    T *dptr, int numPts, int numComp,
                                    int comp, double min, double max,
-                                   vtkUnsignedCharArray *blanking)
+                                   vtkUnsignedCharArray *ghosts)
 {
   T compValue;
   dptr += comp;
@@ -56,14 +56,12 @@ void vtkBlankStructuredGridExecute(vtkBlankStructuredGrid *vtkNotUsed(self),
   for ( int ptId=0; ptId < numPts; ptId++, dptr+=numComp)
     {
     compValue = *dptr;
-    if ( compValue >= min && compValue <= max )
+    unsigned char value = 0;
+    if(compValue >= min && compValue <= max)
       {
-      blanking->SetValue(ptId,0); //make it invisible
+      value |= vtkDataSetAttributes::HIDDENPOINT;
       }
-    else
-      {
-      blanking->SetValue(ptId,1);
-      }
+    ghosts->SetValue(ptId, value);
     }
 }
 
@@ -121,24 +119,20 @@ int vtkBlankStructuredGrid::RequestData(
   // Loop over the data array setting anything within the data range specified
   // to be blanked.
   //
-  vtkUnsignedCharArray *blanking = vtkUnsignedCharArray::New();
-  blanking->SetNumberOfValues(numPts);
-
-  // call templated function
-  switch (dataArray->GetDataType())
+  vtkUnsignedCharArray *ghosts = vtkUnsignedCharArray::New();
+  ghosts->SetNumberOfValues(numPts);
+  switch(dataArray->GetDataType())
     {
     vtkTemplateMacro(
       vtkBlankStructuredGridExecute(this, static_cast<VTK_TT *>(dptr), numPts,
                                     numComp, this->Component,
                                     this->MinBlankingValue,
-                                    this->MaxBlankingValue, blanking));
+                                    this->MaxBlankingValue, ghosts));
     default:
       break;
     }
-
-  // Clean up and get out
-  output->SetPointVisibilityArray(blanking);
-  blanking->Delete();
+  output->SetPointGhostArray(ghosts);
+  ghosts->Delete();
 
   return 1;
 }

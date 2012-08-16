@@ -330,9 +330,9 @@ public:
   int CheckAttributes();
 
   // Description:
-  // Normally called by pipeline executives or algoritgms only. This method
+  // Normally called by pipeline executives or algoritms only. This method
   // computes the ghost arrays for a given dataset. The zeroExt argument
-  // specifies the extent of the region which ghost level = 0.
+  // specifies the extent of the region which ghost type = 0.
   virtual void GenerateGhostLevelArray(int zeroExt[6]);
 
   //BTX

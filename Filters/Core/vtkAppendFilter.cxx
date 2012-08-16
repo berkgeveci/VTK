@@ -118,7 +118,7 @@ int vtkAppendFilter::RequestData(
        {
        vtkDataSet * tempData = vtkDataSet::GetData(inputVector[0], cc);
        if (tempData && tempData->GetCellData() &&
-         tempData->GetCellData()->GetArray("vtkGhostLevels") != NULL)
+         tempData->GetCellData()->GetArray(vtkDataSetAttributes::GhostArrayName()) != NULL)
          {
          has_ghost_cells = true;
          }
