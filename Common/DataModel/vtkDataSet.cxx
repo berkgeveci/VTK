@@ -621,11 +621,11 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
             dist = dk;
             }
 
-          levels->InsertNextValue(static_cast<unsigned char>(dist));
+          levels->InsertNextValue(vtkDataSetAttributes::DUPLICATECELL);
           }
         }
       }
-    levels->SetName("vtkGhostLevels");
+    levels->SetName(vtkDataSetAttributes::GhostArrayName());
     this->CellData->AddArray(levels);
     levels->Delete();
     }

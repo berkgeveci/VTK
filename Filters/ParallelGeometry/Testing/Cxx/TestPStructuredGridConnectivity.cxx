@@ -108,7 +108,7 @@ int GetTotalNumberOfNodes( vtkMultiBlockDataSet *multiblock )
       for( ; pntIdx < grid->GetNumberOfPoints(); ++pntIdx )
         {
         unsigned char nodeProperty =
-            *(grid->GetPointVisibilityArray()->GetPointer( pntIdx ));
+            *(grid->GetPointGhostArray()->GetPointer( pntIdx ));
         if( !vtkGhostArray::IsPropertySet(
             nodeProperty,vtkGhostArray::IGNORE ) )
           {
@@ -233,8 +233,8 @@ void RegisterGrids(
               info->Has(vtkDataObject::PIECE_EXTENT() ) );
       connectivity->RegisterGrid(
           block,info->Get(vtkDataObject::PIECE_EXTENT()),
-          grid->GetPointVisibilityArray(),
-          grid->GetCellVisibilityArray(),
+          grid->GetPointGhostArray(),
+          grid->GetCellGhostArray(),
           grid->GetPointData(),
           grid->GetCellData(),
           NULL );
@@ -346,7 +346,7 @@ double GetXYZSumForGrid( vtkUniformGrid *grid )
   for( vtkIdType pntIdx=0; pntIdx < grid->GetNumberOfPoints(); ++pntIdx )
     {
     unsigned char nodeProperty =
-      *(grid->GetPointVisibilityArray()->GetPointer( pntIdx ));
+      *(grid->GetPointGhostArray()->GetPointer( pntIdx ));
     if( !vtkGhostArray::IsPropertySet( nodeProperty,vtkGhostArray::IGNORE ) )
       {
       grid->GetPoint( pntIdx, pnt );

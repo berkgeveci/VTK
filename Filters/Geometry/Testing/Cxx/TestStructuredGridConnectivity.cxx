@@ -94,7 +94,7 @@ void AttachPointFlagsArray(
   for( ; pidx < grid->GetNumberOfPoints(); ++pidx )
     {
     unsigned char nodeProperty =
-         *(grid->GetPointVisibilityArray()->GetPointer( pidx ));
+         *(grid->GetPointGhostArray()->GetPointer( pidx ));
     if( vtkGhostArray::IsPropertySet(nodeProperty,flag) )
       {
       flags->SetValue( pidx, 1);
@@ -128,8 +128,8 @@ void AttachCellFlagsArray(
   for( ; cellIdx < grid->GetNumberOfCells(); ++cellIdx )
     {
     unsigned char cellProperty =
-        *(grid->GetCellVisibilityArray()->GetPointer(cellIdx));
-    if( vtkGhostArray::IsPropertySet(cellProperty,flag) )
+        *(grid->GetCellGhostArray()->GetPointer(cellIdx));
+    if( vtkGhostArray::IsPropertySet(cellProperty,flag) )//xxx: should use vtkGhostTypes
       {
       flags->SetValue( cellIdx, 1 );
       }
@@ -361,12 +361,9 @@ int GetTotalNumberOfNodes( vtkMultiBlockDataSet *multiblock )
       vtkIdType pntIdx = 0;
       for( ; pntIdx < grid->GetNumberOfPoints(); ++pntIdx )
         {
-        unsigned char nodeProperty =
-            *(grid->GetPointVisibilityArray()->GetPointer( pntIdx ));
-        if( !vtkGhostArray::IsPropertySet(
-            nodeProperty,vtkGhostArray::IGNORE ) )
+        if(grid->IsPointVisible(pntIdx))
           {
-          ++numNodes;
+          numNodes++;
           }
         } // END for all nodes
       } // END if grid != NULL
@@ -395,10 +392,7 @@ int GetTotalNumberOfCells( vtkMultiBlockDataSet *multiblock )
       vtkIdType cellIdx = 0;
       for( ; cellIdx < grid->GetNumberOfCells(); ++cellIdx )
         {
-        unsigned char cellProperty =
-            *(grid->GetCellVisibilityArray()->GetPointer( cellIdx ) );
-        if( !vtkGhostArray::IsPropertySet(
-            cellProperty,vtkGhostArray::DUPLICATE) )
+        if(grid->IsCellVisible(cellIdx))
           {
           ++numCells;
           }
@@ -419,6 +413,8 @@ void RegisterGrids(
     {
     vtkUniformGrid *grid = vtkUniformGrid::SafeDownCast(mbds->GetBlock(block));
     assert( "pre: grid should not be NULL!" && (grid != NULL) );
+    grid->AllocatePointGhostArray();
+    grid->AllocateCellGhostArray();
 
     vtkInformation *info = mbds->GetMetaData( block );
     assert( "pre: metadata should not be NULL" && (info != NULL) );
@@ -427,8 +423,8 @@ void RegisterGrids(
 
     connectivity->RegisterGrid(
         block,info->Get(vtkDataObject::PIECE_EXTENT()),
-        grid->GetPointVisibilityArray(),
-        grid->GetCellVisibilityArray(),
+        grid->GetPointGhostArray(),
+        grid->GetCellGhostArray(),
         grid->GetPointData(),
         grid->GetCellData(),
         NULL);
@@ -519,10 +515,6 @@ vtkMultiBlockDataSet* GetGhostedDataSet(
         SGC->GetGhostedGridPointData(block) );
     ghostedGrid->GetCellData()->DeepCopy(
         SGC->GetGhostedGridCellData(block) );
-
-    // Copy the ghost arrays
-    ghostedGrid->SetPointVisibilityArray(SGC->GetGhostedPointGhostArray(block));
-    ghostedGrid->SetCellVisibilityArray(SGC->GetGhostedCellGhostArray(block));
 
     output->SetBlock( block, ghostedGrid );
     ghostedGrid->Delete();
