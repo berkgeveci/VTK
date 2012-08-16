@@ -14,6 +14,7 @@
 =========================================================================*/
 #include "vtkStructuredGridReader.h"
 
+#include "vtkDataSetAttributes.h"
 #include "vtkFieldData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -254,7 +255,19 @@ int vtkStructuredGridReader::RequestData(
 
         if ( data != NULL )
           {
-          output->SetPointVisibilityArray(data);
+          vtkUnsignedCharArray *ghosts = vtkUnsignedCharArray::New();
+          ghosts->SetNumberOfValues(numPts);
+          for(vtkIdType ptId = 0; ptId < numPts; ++ptId)
+            {
+            unsigned char value = 0;
+            if(data->GetValue(ptId) == 0)
+              {
+              value |= vtkDataSetAttributes::HIDDENPOINT;
+              }
+            ghosts->SetValue(ptId, value);
+            }
+          output->SetPointGhostArray(ghosts);
+          ghosts->Delete();
           data->Delete();
           }
         }

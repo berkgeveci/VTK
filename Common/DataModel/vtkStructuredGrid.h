@@ -48,7 +48,6 @@ class vtkEmptyCell;
 class vtkHexahedron;
 class vtkLine;
 class vtkQuad;
-class vtkStructuredVisibilityConstraint;
 class vtkUnsignedCharArray;
 class vtkVertex;
 
@@ -146,24 +145,32 @@ public:
   void UnBlankCell(vtkIdType ptId);
 
   // Description:
-  // Get the array that defines the blanking (visibility) of each point.
-  vtkUnsignedCharArray *GetPointVisibilityArray();
+  // Get the array that defines the ghost type of each point.
+  vtkUnsignedCharArray* GetPointGhostArray();
 
   // Description:
-  // Set an array that defines the (blanking) visibility of the points
-  // in the grid. Make sure that length of the visibility array matches
+  // Allocate ghost array for points.
+  void AllocatePointGhostArray();
+
+  // Description:
+  // Set an array that defines the ghost types of the points
+  // in the grid. Make sure that length of the ghost array matches
   // the number of points in the grid.
-  void SetPointVisibilityArray(vtkUnsignedCharArray *pointVisibility);
+  void SetPointGhostArray(vtkUnsignedCharArray *ghosts);
 
   // Description:
-  // Get the array that defines the blanking (visibility) of each cell.
-  vtkUnsignedCharArray *GetCellVisibilityArray();
+  // Get the array that defines the ghost type of each cell.
+  vtkUnsignedCharArray* GetCellGhostArray();
 
   // Description:
-  // Set an array that defines the (blanking) visibility of the cells
-  // in the grid. Make sure that length of the visibility array matches
+  // Allocate ghost array for cells.
+  void AllocateCellGhostArray();
+
+  // Description:
+  // Set an array that defines the ghost types of the cells
+  // in the grid. Make sure that length of the ghost array matches
   // the number of points in the grid.
-  void SetCellVisibilityArray(vtkUnsignedCharArray *pointVisibility);
+  void SetCellGhostArray(vtkUnsignedCharArray *ghosts);
 
   // Description:
   // Return non-zero value if specified point is visible.
@@ -176,16 +183,6 @@ public:
   // These methods should be called only after the dimensions of the
   // grid are set.
   unsigned char IsCellVisible(vtkIdType cellId);
-
-  // Description:
-  // Returns 1 if there is any visibility constraint on the points,
-  // 0 otherwise.
-  unsigned char GetPointBlanking();
-
-  // Description:
-  // Returns 1 if there is any visibility constraint on the cells,
-  // 0 otherwise.
-  unsigned char GetCellBlanking();
 
   // Description:
   // Given the node dimensions of this grid instance, this method computes the
@@ -233,15 +230,8 @@ protected:
 
   int Extent[6];
 
-  vtkStructuredVisibilityConstraint* PointVisibility;
-
-  void SetPointVisibility(vtkStructuredVisibilityConstraint *pointVisibility);
-  vtkGetObjectMacro(PointVisibility, vtkStructuredVisibilityConstraint);
-
-  vtkStructuredVisibilityConstraint* CellVisibility;
-
-  void SetCellVisibility(vtkStructuredVisibilityConstraint *cellVisibility);
-  vtkGetObjectMacro(CellVisibility, vtkStructuredVisibilityConstraint);
+  vtkUnsignedCharArray* PointGhostArray;
+  vtkUnsignedCharArray* CellGhostArray;
 
   // Description:
   // Compute the range of the scalars and cache it into ScalarRange

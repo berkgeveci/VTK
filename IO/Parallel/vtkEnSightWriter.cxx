@@ -295,9 +295,9 @@ void vtkEnSightWriter::WriteData()
     }
 
   //get the Ghost Cell Array if it exists
-  vtkDataArray *GhostData=input->GetCellData()->GetScalars("vtkGhostLevels");
+  vtkDataArray *GhostData=input->GetCellData()->GetScalars(vtkDataSetAttributes::GhostArrayName());
   //if the strings are not the same then we did not get the ghostData array
-  if (GhostData==NULL || strcmp(GhostData->GetName(),"vtkGhostLevels"))
+  if (GhostData==NULL || strcmp(GhostData->GetName(), vtkDataSetAttributes::GhostArrayName()))
     {
     GhostData=NULL;
     }

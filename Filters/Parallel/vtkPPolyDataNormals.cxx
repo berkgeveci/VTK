@@ -46,13 +46,6 @@ int vtkPPolyDataNormals::RequestData(
     return 0;
     }
 
-  if (this->PieceInvariant)
-    {
-    output->RemoveGhostCells(
-      outInfo->Get(
-        vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS())+1);
-    }
-
   return 1;
 }
 

@@ -1875,7 +1875,7 @@ void vtkUnstructuredGrid::GetIdsOfCellsOfType(int type, vtkIdTypeArray *array)
 
 
 //----------------------------------------------------------------------------
-void vtkUnstructuredGrid::RemoveGhostCells(int level)
+void vtkUnstructuredGrid::RemoveGhostCells()
 {
   vtkUnstructuredGrid* newGrid = vtkUnstructuredGrid::New();
   vtkDataArray* temp;
@@ -1895,11 +1895,11 @@ void vtkUnstructuredGrid::RemoveGhostCells(int level)
   vtkCellData*    outCD = newGrid->GetCellData();
 
 
-  // Get a pointer to the cell ghost level array.
-  temp = this->CellData->GetArray("vtkGhostLevels");
+  // Get a pointer to the cell ghost array.
+  temp = this->CellData->GetArray(vtkDataSetAttributes::GhostArrayName());
   if (temp == NULL)
     {
-    vtkDebugMacro("Could not find cell ghost level array.");
+    vtkDebugMacro("Could not find cell ghost array.");
     newGrid->Delete();
     return;
     }
@@ -1907,14 +1907,14 @@ void vtkUnstructuredGrid::RemoveGhostCells(int level)
        || (temp->GetNumberOfComponents() != 1)
        || (temp->GetNumberOfTuples() < this->GetNumberOfCells()))
     {
-    vtkErrorMacro("Poorly formed ghost level array.");
+    vtkErrorMacro("Poorly formed ghost array.");
     newGrid->Delete();
     return;
     }
   cellGhostLevels =(static_cast<vtkUnsignedCharArray*>(temp))->GetPointer(0);
 
 
-  // Now threshold based on the cell ghost level array.
+  // Now threshold based on the cell ghost array.
   outPD->CopyAllocate(pd);
   outCD->CopyAllocate(cd);
 
@@ -1940,7 +1940,7 @@ void vtkUnstructuredGrid::RemoveGhostCells(int level)
     cellPts = cell->GetPointIds();
     numCellPts = cell->GetNumberOfPoints();
 
-    if ( cellGhostLevels[cellId] < level ) // Keep the cell.
+    if ( (cellGhostLevels[cellId] & vtkDataSetAttributes::DUPLICATECELL) == 0 ) // Keep the cell.
       {
       for (i=0; i < numCellPts; i++)
         {

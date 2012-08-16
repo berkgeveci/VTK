@@ -38,6 +38,14 @@ if (catch.catch(globals(),"""channel = open("test.tmp", "w")""") == 0):
     mapper.SetPiece(0)
     mapper.SetGhostLevel(1)
     mapper.Update()
+    # Remove ghost cells
+    mapper.GetInput().RemoveGhostCells()
+    w = vtk.vtkDataSetWriter()
+    w.SetInputData(mapper.GetInput())
+    w.SetFileName("foo.vtk")
+    w.SetFileTypeToASCII()
+    w.Write()
+#    print surface.GetInput()
     file.delete("-force", "comb.pvtk")
     file.delete("-force", "comb.0.vtk")
     file.delete("-force", "comb.1.vtk")
@@ -75,7 +83,7 @@ if (catch.catch(globals(),"""channel = open("test.tmp", "w")""") == 0):
     mapper2.SetGhostLevel(0)
     mapper2.Update()
     # Strip the ghost cells requested by the contour filter
-    mapper2.GetInput().RemoveGhostCells(1)
+    mapper2.GetInput().RemoveGhostCells()
     file.delete("-force", "fractal.pvtk")
     file.delete("-force", "fractal.0.vtk")
     file.delete("-force", "fractal.1.vtk")

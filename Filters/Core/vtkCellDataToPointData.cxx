@@ -92,7 +92,7 @@ int vtkCellDataToPointData::RequestData(
   // be over-written during CopyAllocate
   output->GetPointData()->CopyGlobalIdsOff();
   output->GetPointData()->PassData(input->GetPointData());
-  output->GetPointData()->CopyFieldOff("vtkGhostLevels");
+  output->GetPointData()->CopyFieldOff(vtkDataSetAttributes::GhostArrayName());
 
   // notice that inPD and outPD are vtkCellData and vtkPointData; respectively.
   // It's weird, but it works.
@@ -128,7 +128,7 @@ int vtkCellDataToPointData::RequestData(
   if ( !this->PassCellData )
     {
     output->GetCellData()->CopyAllOff();
-    output->GetCellData()->CopyFieldOn("vtkGhostLevels");
+    output->GetCellData()->CopyFieldOn(vtkDataSetAttributes::GhostArrayName());
     }
   output->GetCellData()->PassData(input->GetCellData());
 
@@ -238,7 +238,7 @@ int vtkCellDataToPointData::RequestDataForUnstructuredGrid
   // be over-written during CopyAllocate
   opd->CopyGlobalIdsOff();
   opd->PassData(src->GetPointData());
-  opd->CopyFieldOff("vtkGhostLevels");
+  opd->CopyFieldOff(vtkDataSetAttributes::GhostArrayName());
 
   // Copy all existing cell fields into a temporary cell data array
   vtkSmartPointer<vtkCellData> clean = vtkSmartPointer<vtkCellData>::New();
@@ -299,7 +299,7 @@ int vtkCellDataToPointData::RequestDataForUnstructuredGrid
   if (!this->PassCellData)
     {
     dst->GetCellData()->CopyAllOff();
-    dst->GetCellData()->CopyFieldOn("vtkGhostLevels");
+    dst->GetCellData()->CopyFieldOn(vtkDataSetAttributes::GhostArrayName());
     }
   dst->GetCellData()->PassData(src->GetCellData());
 
