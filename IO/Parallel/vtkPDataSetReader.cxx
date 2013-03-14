@@ -920,15 +920,7 @@ int vtkPDataSetReader::RequestData(vtkInformation* request,
       return 0;
       }
 
-    // Do not copy the ExtentTranslator (hack)
-    // reader should probably set the extent translator
-    // not paraview.
-    vtkExtentTranslator *tmp =
-      vtkStreamingDemandDrivenPipeline::GetExtentTranslator(info);
-    tmp->Register(this);
     output->CopyStructure(data);
-    vtkStreamingDemandDrivenPipeline::SetExtentTranslator(info, tmp);
-    tmp->UnRegister(tmp);
     output->GetFieldData()->PassData(data->GetFieldData());
     output->GetCellData()->PassData(data->GetCellData());
     output->GetPointData()->PassData(data->GetPointData());

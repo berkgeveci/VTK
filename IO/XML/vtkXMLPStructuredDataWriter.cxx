@@ -52,8 +52,10 @@ void vtkXMLPStructuredDataWriter::WritePPieceAttributes(int index)
 {
   int extent[6];
   vtkInformation* inInfo = this->GetExecutive()->GetInputInformation(0, 0);
-  vtkExtentTranslator* et = vtkExtentTranslator::SafeDownCast(
-    inInfo->Get(vtkStreamingDemandDrivenPipeline::EXTENT_TRANSLATOR()));
+  // TODO (berk)
+  // Need to fix this
+  vtkExtentTranslator* et = 0; /*vtkExtentTranslator::SafeDownCast(
+                                 inInfo->Get(vtkStreamingDemandDrivenPipeline::EXTENT_TRANSLATOR())); */
 
   et->SetNumberOfPieces(this->GetNumberOfPieces());
   et->SetWholeExtent(inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));
@@ -75,8 +77,10 @@ vtkXMLWriter* vtkXMLPStructuredDataWriter::CreatePieceWriter(int index)
 {
   int extent[6];
   vtkInformation* inInfo = this->GetExecutive()->GetInputInformation(0, 0);
-  vtkExtentTranslator* et = vtkExtentTranslator::SafeDownCast(
-    inInfo->Get(vtkStreamingDemandDrivenPipeline::EXTENT_TRANSLATOR()));
+  // TODO (berk)
+  // Need to fix this
+  vtkExtentTranslator* et = 0; /* vtkExtentTranslator::SafeDownCast(
+                                  inInfo->Get(vtkStreamingDemandDrivenPipeline::EXTENT_TRANSLATOR())); */
 
   et->SetNumberOfPieces(this->GetNumberOfPieces());
   et->SetWholeExtent(inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));
@@ -127,8 +131,10 @@ int vtkXMLPStructuredDataWriter::RequestUpdateExtent(
   // pieces because that does its own RequestUpdateExtent with the right
   // piece information.
   int extent[6];
-  vtkExtentTranslator* et = vtkExtentTranslator::SafeDownCast(
-    inInfo->Get(vtkStreamingDemandDrivenPipeline::EXTENT_TRANSLATOR()));
+  // TODO (berk)
+  // Need to fix this
+  vtkExtentTranslator* et = 0; /* vtkExtentTranslator::SafeDownCast(
+                               inInfo->Get(vtkStreamingDemandDrivenPipeline::EXTENT_TRANSLATOR())); */
 
   et->SetNumberOfPieces(this->GetNumberOfPieces());
   et->SetWholeExtent(inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));

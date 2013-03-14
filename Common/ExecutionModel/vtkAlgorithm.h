@@ -213,6 +213,13 @@ public:
   static vtkInformationIntegerKey* INPUT_PORT();
   static vtkInformationIntegerKey* INPUT_CONNECTION();
 
+  // Description:
+  // This key tells the executive that a particular output port
+  // is capable of producing an arbitrary subextent of the whole
+  // extent. Many image sources and readers fall into this category
+  // but some such as the legacy structured data readers cannot
+  // support this feature.
+  static vtkInformationIntegerKey* CAN_PRODUCE_SUB_EXTENT();
 
   // Description:
   // Set the input data arrays that this algorithm will
@@ -464,23 +471,6 @@ public:
   // If the DefaultExecutivePrototype is set, a copy of it is created
   // in CreateDefaultExecutive() using NewInstance().
   static void SetDefaultExecutivePrototype(vtkExecutive* proto);
-
-  // Description:
-  // Returns the priority of the piece described by the current update
-  // extent. The priority is a number between 0.0 and 1.0 with 0 meaning
-  // skippable (REQUEST_DATA not needed) and 1.0 meaning important.
-  virtual double ComputePriority();
-
-  // Description:
-  // These are flags that can be set that let the pipeline keep accurate
-  // meta-information for ComputePriority.
-  static vtkInformationIntegerKey* PRESERVES_DATASET();
-  static vtkInformationIntegerKey* PRESERVES_GEOMETRY();
-  static vtkInformationIntegerKey* PRESERVES_BOUNDS();
-  static vtkInformationIntegerKey* PRESERVES_TOPOLOGY();
-  static vtkInformationIntegerKey* PRESERVES_ATTRIBUTES();
-  static vtkInformationIntegerKey* PRESERVES_RANGES();
-  static vtkInformationIntegerKey* MANAGES_METAINFORMATION();
 
   // Description:
   // If the whole output extent is required, this method can be called to set

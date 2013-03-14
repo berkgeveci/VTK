@@ -5152,27 +5152,27 @@ int vtkExodusIIReader::RequestData(
   vtkIdType oldFastPathObjId = -1;
   ObjectType oldFastPathObjType = ELEM_BLOCK;
   char* oldFastPathIdType = 0;
-  if (
-    outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE() ) &&
-    outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID() ) &&
-    outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE() ) )
-    {
-    const char *objectType = outInfo->Get(
-      vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE() );
-    vtkIdType objectId = outInfo->Get(
-      vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID() );
-    const char *idType = outInfo->Get(
-      vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE() );
+  // if (
+  //   outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE() ) &&
+  //   outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID() ) &&
+  //   outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE() ) )
+  //   {
+  //   const char *objectType = outInfo->Get(
+  //     vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE() );
+  //   vtkIdType objectId = outInfo->Get(
+  //     vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID() );
+  //   const char *idType = outInfo->Get(
+  //     vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE() );
 
-    oldFastPathObjId = this->Metadata->FastPathObjectId;
-    oldFastPathObjType = this->Metadata->FastPathObjectType;
-    oldFastPathIdType = vtksys::SystemTools::DuplicateString( this->Metadata->FastPathIdType );
+  //   oldFastPathObjId = this->Metadata->FastPathObjectId;
+  //   oldFastPathObjType = this->Metadata->FastPathObjectType;
+  //   oldFastPathIdType = vtksys::SystemTools::DuplicateString( this->Metadata->FastPathIdType );
 
-    this->SetFastPathObjectType( objectType );
-    this->SetFastPathObjectId( objectId );
-    this->SetFastPathIdType( idType );
-    haveFastPath = true;
-    }
+  //   this->SetFastPathObjectType( objectType );
+  //   this->SetFastPathObjectId( objectId );
+  //   this->SetFastPathIdType( idType );
+  //   haveFastPath = true;
+  //   }
 
   //cout << "Requesting step " << this->TimeStep << " for output " << output << "\n";
   this->Metadata->RequestData( this->TimeStep, output );
@@ -6092,7 +6092,7 @@ void vtkExodusIIReader::AdvertiseTimeSteps( vtkInformation* outInfo )
 
   // Advertise to downstream filters that this reader supports a fast-path
   // for reading data over time.
-  outInfo->Set( vtkStreamingDemandDrivenPipeline::FAST_PATH_FOR_TEMPORAL_DATA(), 1 );
+  //outInfo->Set( vtkStreamingDemandDrivenPipeline::FAST_PATH_FOR_TEMPORAL_DATA(), 1 );
 }
 
 void vtkExodusIIReader::SetFastPathObjectType( const char* type )

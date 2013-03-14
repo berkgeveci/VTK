@@ -15,6 +15,7 @@
 #include "vtkRTAnalyticSource.h"
 
 #include "vtkDataArray.h"
+#include "vtkExtentTranslator.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -123,7 +124,6 @@ int vtkRTAnalyticSource::RequestInformation(
 void vtkRTAnalyticSource::ExecuteDataWithInformation(vtkDataObject *output,
                                                      vtkInformation *outInfo)
 {
-  vtkImageData *data;
   float *outPtr;
   int idxX, idxY, idxZ;
   int maxX, maxY, maxZ;
@@ -136,7 +136,29 @@ void vtkRTAnalyticSource::ExecuteDataWithInformation(vtkDataObject *output,
   unsigned long count = 0;
   unsigned long target;
 
-  data = this->AllocateOutputData(output, outInfo);
+  // Split the update extent further based on piece request.
+  int* execExt = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT());
+  int numPieces = outInfo->Get(
+    vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
+  int piece = outInfo->Get(
+    vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
+  int numGhosts = outInfo->Get(
+    vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
+
+  if (piece == 0)
+    {
+    cout << "Piece:" << piece << " " << numPieces << " " << numGhosts << endl;
+    cout << "Extent: "
+         << execExt[0] << " "
+         << execExt[1] << " "
+         << execExt[2] << " "
+         << execExt[3] << " "
+         << execExt[4] << " "
+         << execExt[5] << endl;
+    }
+
+  vtkImageData *data = vtkImageData::GetData(outInfo);
+  this->AllocateOutputData(data, outInfo, execExt);
   if (data->GetScalarType() != VTK_FLOAT)
     {
     vtkErrorMacro("Execute: This source only outputs floats");
@@ -254,4 +276,17 @@ void vtkRTAnalyticSource::PrintSelf(ostream& os, vtkIndent indent)
      << ", " << this->WholeExtent[5] << endl;
 
   os << indent << "SubsampleRate: " << this->SubsampleRate << endl;
+}
+
+int vtkRTAnalyticSource::FillOutputPortInformation(
+  int port, vtkInformation* info)
+{
+  if (!this->Superclass::FillOutputPortInformation(port, info))
+    {
+    return 0;
+    }
+
+  info->Set(CAN_PRODUCE_SUB_EXTENT(), 1);
+
+  return 1;
 }

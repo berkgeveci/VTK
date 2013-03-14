@@ -904,16 +904,16 @@ int vtkExtractArraysOverTime::RequestInformation(
     this->NumberOfTimeSteps = 0;
     }
 
-  // Check whether there is a fast-path option and if so, set our internal flag
-  if ( inInfo->Has(
-        vtkStreamingDemandDrivenPipeline::FAST_PATH_FOR_TEMPORAL_DATA()) )
-    {
-    this->UseFastPath = true;
-    }
-  else
-    {
-    this->UseFastPath = false;
-    }
+  // // Check whether there is a fast-path option and if so, set our internal flag
+  // if ( inInfo->Has(
+  //       vtkStreamingDemandDrivenPipeline::FAST_PATH_FOR_TEMPORAL_DATA()) )
+  //   {
+  //   this->UseFastPath = true;
+  //   }
+  // else
+  //   {
+  //   this->UseFastPath = false;
+  //   }
 
   // The output of this filter does not contain a specific time, rather
   // it contains a collection of time steps. Also, this filter does not
@@ -954,31 +954,31 @@ int vtkExtractArraysOverTime::RequestUpdateExtent(
     inInfo1->Set(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP(), timeReq);
     }
 
-  if (this->UseFastPath && this->Internal->FastPathIDs.size() > 0 &&
-    this->IsExecuting)
-    {
-    // Create a key for the selected id
-    inInfo1->Set(vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID(),
-                  this->Internal->FastPathIDs[this->Internal->FastPathIDIndex]);
+  // if (this->UseFastPath && this->Internal->FastPathIDs.size() > 0 &&
+  //   this->IsExecuting)
+  //   {
+  //   // Create a key for the selected id
+  //   inInfo1->Set(vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID(),
+  //                 this->Internal->FastPathIDs[this->Internal->FastPathIDIndex]);
 
-    // Create a key for the data type
-    if (this->FieldType == vtkSelectionNode::CELL)
-      {
-      inInfo1->Set(vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE(),
-                   "CELL");
-      }
-    else if(this->FieldType == vtkSelectionNode::POINT)
-      {
-      inInfo1->Set(vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE(),
-                   "POINT");
-      }
+  //   // Create a key for the data type
+  //   if (this->FieldType == vtkSelectionNode::CELL)
+  //     {
+  //     inInfo1->Set(vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE(),
+  //                  "CELL");
+  //     }
+  //   else if(this->FieldType == vtkSelectionNode::POINT)
+  //     {
+  //     inInfo1->Set(vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE(),
+  //                  "POINT");
+  //     }
 
-    // Create a key for the type of id
-    assert(this->ContentType == vtkSelectionNode::GLOBALIDS);
-    inInfo1->Set(vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE(),
-      "GLOBAL");
-    this->WaitingForFastPathData = true;
-    }
+  //   // Create a key for the type of id
+  //   assert(this->ContentType == vtkSelectionNode::GLOBALIDS);
+  //   inInfo1->Set(vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE(),
+  //     "GLOBAL");
+  //   this->WaitingForFastPathData = true;
+  //   }
 
   /* Again, extent related stuff is no longer relevant since we are not
    * producing rectilinear grid as the output, instead it is multiblock.

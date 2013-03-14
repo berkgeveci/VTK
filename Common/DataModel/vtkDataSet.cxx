@@ -452,11 +452,7 @@ int vtkDataSet::CheckAttributes()
 }
 
 //----------------------------------------------------------------------------
-void vtkDataSet::GenerateGhostLevelArray(int update_piece,
-                                         int update_num_pieces,
-                                         int vtkNotUsed(update_ghost_level),
-                                         int* whole_extent,
-                                         vtkExtentTranslator* translator)
+void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
 {
   // Make sure this is a structured data set.
   if(this->GetExtentType() != VTK_3D_EXTENT)
@@ -468,10 +464,12 @@ void vtkDataSet::GenerateGhostLevelArray(int update_piece,
   if(!this->PointData->GetArray("vtkGhostLevels"))
     { // Create ghost levels for cells and points.
     vtkUnsignedCharArray *levels;
-    int zeroExt[6], extent[6];
+    int extent[6];
     int i, j, k, di, dj, dk, dist;
 
     this->Information->Get(vtkDataObject::DATA_EXTENT(), extent);
+
+    /*
     // Get the extent with ghost level 0.
     translator->SetWholeExtent(whole_extent);
     translator->SetPiece(update_piece);
@@ -479,6 +477,7 @@ void vtkDataSet::GenerateGhostLevelArray(int update_piece,
     translator->SetGhostLevel(0);
     translator->PieceToExtent();
     translator->GetExtent(zeroExt);
+    */
 
     // ---- POINTS ----
     // Allocate the appropriate number levels (number of points).
@@ -495,7 +494,7 @@ void vtkDataSet::GenerateGhostLevelArray(int update_piece,
         {
         dk = zeroExt[4] - k;
         }
-      if (k >= zeroExt[5] && k < whole_extent[5])
+      if (k >= zeroExt[5])
         { // Special case for last tile.
         dk = k - zeroExt[5] + 1;
         }
@@ -506,7 +505,7 @@ void vtkDataSet::GenerateGhostLevelArray(int update_piece,
           {
           dj = zeroExt[2] - j;
           }
-        if (j >= zeroExt[3] && j < whole_extent[3])
+        if (j >= zeroExt[3])
           { // Special case for last tile.
           dj = j - zeroExt[3] + 1;
           }
@@ -517,7 +516,7 @@ void vtkDataSet::GenerateGhostLevelArray(int update_piece,
             {
             di = zeroExt[0] - i;
             }
-          if (i >= zeroExt[1] && i < whole_extent[1])
+          if (i >= zeroExt[1])
             { // Special case for last tile.
             di = i - zeroExt[1] + 1;
             }

@@ -650,23 +650,23 @@ int vtkPExodusIIReader::RequestData(
         }
       }
 
-    // All keys must be present for the fast-path to work.
-    if ( outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE() ) &&
-         outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID() ) &&
-         outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE() ) )
-      {
-      const char *objectType = outInfo->Get(
-            vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE() );
-      vtkIdType objectId = outInfo->Get(
-            vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID() );
-      const char *idType = outInfo->Get(
-            vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE() );
+    // // All keys must be present for the fast-path to work.
+    // if ( outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE() ) &&
+    //      outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID() ) &&
+    //      outInfo->Has( vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE() ) )
+    //   {
+    //   const char *objectType = outInfo->Get(
+    //         vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_TYPE() );
+    //   vtkIdType objectId = outInfo->Get(
+    //         vtkStreamingDemandDrivenPipeline::FAST_PATH_OBJECT_ID() );
+    //   const char *idType = outInfo->Get(
+    //         vtkStreamingDemandDrivenPipeline::FAST_PATH_ID_TYPE() );
 
-      this->ReaderList[reader_idx]->SetFastPathObjectType( objectType );
-      this->ReaderList[reader_idx]->SetFastPathObjectId( objectId );
-      this->ReaderList[reader_idx]->SetFastPathIdType( idType );
-      }
-    else
+    //   this->ReaderList[reader_idx]->SetFastPathObjectType( objectType );
+    //   this->ReaderList[reader_idx]->SetFastPathObjectId( objectId );
+    //   this->ReaderList[reader_idx]->SetFastPathIdType( idType );
+    //   }
+    // else
       {
       this->ReaderList[reader_idx]->SetFastPathObjectType("CELL");
       this->ReaderList[reader_idx]->SetFastPathObjectId(-1);

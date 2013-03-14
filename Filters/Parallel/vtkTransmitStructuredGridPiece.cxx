@@ -185,12 +185,16 @@ int vtkTransmitStructuredGridPiece::RequestData(
     int updateNumPieces = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
     vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
     int* wholeExt = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
+    // TODO (berk)
+    // Fix this
+    /*
     vtkExtentTranslator* et = vtkStreamingDemandDrivenPipeline::GetExtentTranslator(inInfo);
     output->GenerateGhostLevelArray(updatePiece,
                                     updateNumPieces,
                                     ghostLevel,
                                     wholeExt,
                                     et);
+    */
     }
 
   return 1;

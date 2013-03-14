@@ -1042,6 +1042,9 @@ int vtkDemandDrivenPipeline
                     vtkInformationVector** inInfoVec,
                     vtkInformationVector* outInfoVec)
 {
+  // TODO (berk)
+  // Need to execute should return false when update num. pieces is 0
+
   // If the filter parameters or input have been modified since the
   // last execution then we must execute.  This is a shortcut for most
   // filters since all outputs will have the same UpdateTime.  This

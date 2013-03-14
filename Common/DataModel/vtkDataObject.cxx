@@ -59,6 +59,7 @@ vtkInformationKeyRestrictedMacro(vtkDataObject, PIECE_FIELD_RANGE, DoubleVector,
 vtkInformationKeyMacro(vtkDataObject, FIELD_ARRAY_NAME, String);
 vtkInformationKeyRestrictedMacro(vtkDataObject, PIECE_EXTENT, IntegerVector, 6);
 vtkInformationKeyMacro(vtkDataObject, FIELD_OPERATION, Integer);
+vtkInformationKeyRestrictedMacro(vtkDataObject, ALL_PIECES_EXTENT, IntegerVector, 6);
 vtkInformationKeyRestrictedMacro(vtkDataObject, DATA_EXTENT, IntegerPointer, 6);
 vtkInformationKeyRestrictedMacro(vtkDataObject, ORIGIN, DoubleVector, 3);
 vtkInformationKeyRestrictedMacro(vtkDataObject, SPACING, DoubleVector, 3);
@@ -166,6 +167,7 @@ void vtkDataObject::Initialize()
   if (this->Information)
     {
     // Make sure the information is cleared.
+    this->Information->Remove(ALL_PIECES_EXTENT());
     this->Information->Remove(DATA_PIECE_NUMBER());
     this->Information->Remove(DATA_NUMBER_OF_PIECES());
     this->Information->Remove(DATA_NUMBER_OF_GHOST_LEVELS());

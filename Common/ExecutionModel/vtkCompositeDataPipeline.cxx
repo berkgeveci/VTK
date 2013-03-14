@@ -574,13 +574,6 @@ int vtkCompositeDataPipeline::NeedToExecuteData(
                                                inInfoVec,outInfoVec);
     }
 
-  // Does the superclass want to execute?
-  if(this->vtkDemandDrivenPipeline::NeedToExecuteData(
-       outputPort,inInfoVec,outInfoVec))
-    {
-    return 1;
-    }
-
   // We need to check the requested update extent.  Get the output
   // port information and data information.  We do not need to check
   // existence of values because it has already been verified by
@@ -592,7 +585,18 @@ int vtkCompositeDataPipeline::NeedToExecuteData(
     return this->Superclass::NeedToExecuteData(outputPort,
                                                inInfoVec,outInfoVec);
     }
+
+  // Does the superclass want to execute?
+  if(this->vtkDemandDrivenPipeline::NeedToExecuteData(
+       outputPort,inInfoVec,outInfoVec))
+    {
+    return 1;
+    }
+
   vtkInformation* dataInfo = dataObject->GetInformation();
+
+  // TODO (berk)
+  // Refactor this with superclass
 
   // Check the unstructured extent.  If we do not have the requested
   // piece, we need to execute.
@@ -619,11 +623,6 @@ int vtkCompositeDataPipeline::NeedToExecuteData(
     }
 
   if (this->NeedToExecuteBasedOnTime(outInfo, dataObject))
-    {
-    return 1;
-    }
-
-  if (this->NeedToExecuteBasedOnFastPathData(outInfo))
     {
     return 1;
     }
