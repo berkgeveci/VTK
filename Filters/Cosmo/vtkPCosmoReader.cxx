@@ -175,28 +175,6 @@ vtkMultiProcessController* vtkPCosmoReader::GetController()
 }
 
 //----------------------------------------------------------------------------
-int vtkPCosmoReader::RequestInformation(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **vtkNotUsed(inputVector),
-  vtkInformationVector *outputVector)
-{
-  // set the pieces as the number of processes
-  outputVector->GetInformationObject(0)->Set
-    (vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(),
-     this->Controller->GetNumberOfProcesses());
-
-  outputVector->GetInformationObject(0)->Set
-    (vtkDataObject::DATA_NUMBER_OF_PIECES(),
-     this->Controller->GetNumberOfProcesses());
-
-  // set the ghost levels
-  outputVector->GetInformationObject(0)->Set
-    (vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS(), 1);
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
 int vtkPCosmoReader::RequestData(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **vtkNotUsed(inputVector),

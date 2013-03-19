@@ -120,11 +120,14 @@ vtkTrivialProducer::ProcessRequest(vtkInformation* request,
     {
     vtkInformation* outputInfo = outputVector->GetInformationObject(0);
     vtkInformation* dataInfo = this->Output->GetInformation();
+    /*
     if(dataInfo->Get(vtkDataObject::DATA_EXTENT_TYPE()) == VTK_PIECES_EXTENT)
       {
       outputInfo->Set(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(), -1);
       }
-    else if(dataInfo->Get(vtkDataObject::DATA_EXTENT_TYPE()) == VTK_3D_EXTENT)
+      else
+    */
+    if(dataInfo->Get(vtkDataObject::DATA_EXTENT_TYPE()) == VTK_3D_EXTENT)
       {
       if (this->WholeExtent[0] <= this->WholeExtent[1] &&
           this->WholeExtent[2] <= this->WholeExtent[3] &&

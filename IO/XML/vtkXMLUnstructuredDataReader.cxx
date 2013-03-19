@@ -354,19 +354,21 @@ void vtkXMLUnstructuredDataReader::SetupOutputInformation(vtkInformation *outInf
 
   // Set the maximum number of pieces that can be provided by this
   // reader.
-  outInfo->Set(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(),
-    this->NumberOfPieces);
+  //outInfo->Set(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(),
+  //this->NumberOfPieces);
 }
 
 
 //----------------------------------------------------------------------------
 void vtkXMLUnstructuredDataReader::CopyOutputInformation(vtkInformation *outInfo, int port)
 {
+  this->Superclass::CopyOutputInformation(outInfo, port);
+  /*
   vtkInformation *localInfo =
     this->GetExecutive()->GetOutputInformation( port );
-  this->Superclass::CopyOutputInformation(outInfo, port);
   outInfo->CopyEntry(localInfo,
     vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES() );
+  */
 }
 
 

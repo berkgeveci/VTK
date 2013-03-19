@@ -285,27 +285,6 @@ int vtkExtractCTHPart::FillInputPortInformation(int port,
   return 1;
 }
 
-//----------------------------------------------------------------------------
-int vtkExtractCTHPart::RequestInformation(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **vtkNotUsed(inputVector),
-  vtkInformationVector *outputVector)
-{
-  vtkInformation* outInfo;
-
-  int num=this->GetNumberOfOutputPorts();
-  int port;
-  for(port = 0; port<num; port++)
-    {
-    outInfo=outputVector->GetInformationObject(port);
-    // RequestData() synchronizes (communicates among processes), so we need
-    // all procs to call RequestData().
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(),
-                 -1);
-    }
-  return 1;
-}
-
 //-----------------------------------------------------------------------------
 int vtkExtractCTHPart::RequestData(
   vtkInformation *vtkNotUsed(request),

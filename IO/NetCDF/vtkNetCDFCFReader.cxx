@@ -989,6 +989,7 @@ int vtkNetCDFCFReader::RequestInformation(vtkInformation *request,
     return 0;
     }
 
+  /*
   // Superclass understands structured data, but we have to handle unstructured
   // "extents" (pieces).
   vtkInformation *outInfo = outputVector->GetInformationObject(0);
@@ -998,6 +999,7 @@ int vtkNetCDFCFReader::RequestInformation(vtkInformation *request,
     outInfo->Set(
               vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(), -1);
     }
+  */
 
   return 1;
 }

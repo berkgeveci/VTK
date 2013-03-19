@@ -199,8 +199,8 @@ vtkMultiProcessController* vtkPCosmoHaloFinder::GetController()
 //----------------------------------------------------------------------------
 int vtkPCosmoHaloFinder::RequestInformation
 (vtkInformation* vtkNotUsed(request),
- vtkInformationVector** inputVector,
- vtkInformationVector* outputVector)
+ vtkInformationVector** vtkNotUsed(inputVector),
+ vtkInformationVector* vtkNotUsed(outputVector))
 {
 #ifndef USE_SERIAL_COSMO
   // check for controller
@@ -211,6 +211,7 @@ int vtkPCosmoHaloFinder::RequestInformation
     }
 #endif
 
+  /*
   // set the other outputs to have the same number of pieces
   if((*inputVector)->GetInformationObject(0)->Has(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES()))
     {
@@ -235,6 +236,7 @@ int vtkPCosmoHaloFinder::RequestInformation
          (vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES()));
       }
     }
+  */
 
   return 1;
 }

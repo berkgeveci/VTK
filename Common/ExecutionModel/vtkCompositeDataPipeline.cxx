@@ -921,10 +921,6 @@ void vtkCompositeDataPipeline::CopyFromDataToInformation(
     inInfo->Set(
       WHOLE_EXTENT(), static_cast<vtkUniformGrid*>(dobj)->GetExtent(), 6);
     }
-  else
-    {
-    inInfo->Set(MAXIMUM_NUMBER_OF_PIECES(), 1);
-    }
 }
 
 //----------------------------------------------------------------------------
@@ -932,7 +928,6 @@ void vtkCompositeDataPipeline::PushInformation(vtkInformation* inInfo)
 {
   vtkDebugMacro(<< "PushInformation " << inInfo);
   this->InformationCache->CopyEntry(inInfo, WHOLE_EXTENT());
-  this->InformationCache->CopyEntry(inInfo, MAXIMUM_NUMBER_OF_PIECES());
 }
 
 //----------------------------------------------------------------------------
@@ -940,7 +935,6 @@ void vtkCompositeDataPipeline::PopInformation(vtkInformation* inInfo)
 {
   vtkDebugMacro(<< "PopInformation " << inInfo);
   inInfo->CopyEntry(this->InformationCache, WHOLE_EXTENT());
-  inInfo->CopyEntry(this->InformationCache, MAXIMUM_NUMBER_OF_PIECES());
 }
 
 //----------------------------------------------------------------------------

@@ -517,12 +517,14 @@ void vtkPDataSetReader::ReadPVTKFileInformation(
     if (strcmp(param, "numberOfPieces") == 0)
       {
       this->SetNumberOfPieces(atoi(val));
+      /*
       if (! this->StructuredFlag)
         {
         info->Set(
           vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(),
           this->NumberOfPieces);
         }
+      */
       }
 
     // Handle parameter: wholeExtent.
@@ -761,10 +763,12 @@ void vtkPDataSetReader::ReadVTKFileInformation(
     vtkErrorMacro("I can not figure out what type of data set this is: " << str);
     return;
     }
+  /*
   if (this->DataType == VTK_POLY_DATA || this->DataType == VTK_UNSTRUCTURED_GRID)
     {
     info->Set(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(), 1);
     }
+  */
 }
 
 void vtkPDataSetReader::SkipFieldData(ifstream *file)
