@@ -55,10 +55,6 @@ vtkGridSynchronizedTemplates3D::vtkGridSynchronizedTemplates3D()
   this->ComputeScalars = 1;
   this->GenerateTriangles = 1;
 
-  this->ExecuteExtent[0] = this->ExecuteExtent[1]
-    = this->ExecuteExtent[2] = this->ExecuteExtent[3]
-    = this->ExecuteExtent[4] = this->ExecuteExtent[5] = 0;
-
   this->MinimumPieceSize[0] = 10;
   this->MinimumPieceSize[1] = 10;
   this->MinimumPieceSize[2] = 10;
@@ -880,11 +876,6 @@ int vtkGridSynchronizedTemplates3D::RequestUpdateExtent(
                 ghostLevels + 1);
     }
 
-  // TODO (berk)
-  // Need to fix this->ExecuteExtent. Should be same as update extent.
-  // Downstream can take of removing ghost levels. Do this in RequestData.
-  abort();
-
   return 1;
 }
 
@@ -939,7 +930,7 @@ int vtkGridSynchronizedTemplates3D::RequestData(
     }
 
   // just call the threaded execute directly.
-  this->ThreadedExecute(this->GetExecuteExtent(), 0, input, inputVector, outInfo);
+  this->ThreadedExecute(input->GetExtent(), 0, input, inputVector, outInfo);
 
   output->Squeeze();
 

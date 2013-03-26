@@ -118,6 +118,9 @@ int vtkRTAnalyticSource::RequestInformation(
   outInfo->Set(vtkDataObject::SPACING(), this->SubsampleRate,
                this->SubsampleRate, this->SubsampleRate);
   vtkDataObject::SetPointDataActiveScalarInfo(outInfo, VTK_FLOAT, 1);
+
+  outInfo->Set(CAN_PRODUCE_SUB_EXTENT(), 1);
+
   return 1;
 }
 
@@ -138,6 +141,9 @@ void vtkRTAnalyticSource::ExecuteDataWithInformation(vtkDataObject *output,
 
   // Split the update extent further based on piece request.
   int* execExt = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT());
+
+  // For debugging
+  /*
   int numPieces = outInfo->Get(
     vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
   int piece = outInfo->Get(
@@ -156,6 +162,7 @@ void vtkRTAnalyticSource::ExecuteDataWithInformation(vtkDataObject *output,
          << execExt[4] << " "
          << execExt[5] << endl;
     }
+  */
 
   vtkImageData *data = vtkImageData::GetData(outInfo);
   this->AllocateOutputData(data, outInfo, execExt);
@@ -285,8 +292,6 @@ int vtkRTAnalyticSource::FillOutputPortInformation(
     {
     return 0;
     }
-
-  info->Set(CAN_PRODUCE_SUB_EXTENT(), 1);
 
   return 1;
 }

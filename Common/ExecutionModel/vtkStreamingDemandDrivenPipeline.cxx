@@ -446,14 +446,9 @@ vtkStreamingDemandDrivenPipeline
           }
         }
 
-      // Make sure an update request exists.
-      if(!info->Has(UPDATE_EXTENT_INITIALIZED()) ||
-         !info->Get(UPDATE_EXTENT_INITIALIZED()))
-        {
-        // Request all data by default.
-        this->SetUpdateExtentToWholeExtent
-          (outInfoVec->GetInformationObject(i));
-        }
+      // Request all data by default.
+      this->SetUpdateExtentToWholeExtent(
+        outInfoVec->GetInformationObject(i));
       }
     return 1;
     }
@@ -606,6 +601,34 @@ vtkStreamingDemandDrivenPipeline
       outputPort = request->Get(FROM_OUTPUT_PORT());
       }
 
+    // TODO (berk)
+    // This might need tweaking. It may not work in cases
+    // where a mapper sets its input extent and then calls
+    // update on itself. This would overwrite it.
+
+    // Initialize input extent to whole extent if it is not
+    // already initialized.
+    // This may be overwritten by the default code below as
+    // well as what that an algorith may do.
+    for(int i=0; i < this->Algorithm->GetNumberOfInputPorts(); ++i)
+      {
+      // Loop over all connections on this input port.
+      int numInConnections = inInfoVec[i]->GetNumberOfInformationObjects();
+      for (int j=0; j<numInConnections; j++)
+        {
+        vtkInformation* inInfo = inInfoVec[i]->GetInformationObject(j);
+        if(inInfo->Has(WHOLE_EXTENT()))
+          {
+          int extent[6] = {0, -1, 0, -1, 0, -1};
+          inInfo->Get(WHOLE_EXTENT(), extent);
+          this->SetUpdateExtent(inInfo, extent);
+          }
+        vtkStreamingDemandDrivenPipeline::SetUpdatePiece(inInfo, 0);
+        vtkStreamingDemandDrivenPipeline::SetUpdateNumberOfPieces(inInfo, 1);
+        vtkStreamingDemandDrivenPipeline::SetUpdateGhostLevel(inInfo, 0);
+        }
+      }
+
     // Setup default information for the inputs.
     if(outInfoVec->GetNumberOfInformationObjects() > 0)
       {
@@ -658,6 +681,7 @@ vtkStreamingDemandDrivenPipeline
             }
           else
             {
+            /*
             // TODO (berk)
             // This doesn't make sense. Input and output types
             // should be the other way around.
@@ -668,6 +692,7 @@ vtkStreamingDemandDrivenPipeline
               inInfo->Get(WHOLE_EXTENT(), extent);
               this->SetUpdateExtent(inInfo, extent);
               }
+            */
             }
 
           inInfo->CopyEntry(outInfo, UPDATE_PIECE_NUMBER());
@@ -698,7 +723,7 @@ vtkStreamingDemandDrivenPipeline
   info->Remove(TIME_RANGE());
   info->Remove(UPDATE_TIME_STEP());
   info->Remove(PREVIOUS_UPDATE_TIME_STEP());
-  info->Remote(CAN_HANDLE_PIECE_REQUEST());
+  info->Remove(CAN_HANDLE_PIECE_REQUEST());
 }
 
 //----------------------------------------------------------------------------
@@ -949,19 +974,26 @@ vtkStreamingDemandDrivenPipeline
     int numPieces = outInfo->Get(UPDATE_NUMBER_OF_PIECES());
     if (numPieces > 1)
       {
-      vtkInformation* portInfo =
-        this->Algorithm->GetOutputPortInformation(i);
+      int* uExt = outInfo->Get(
+        vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT());
+      if (uExt)
+        {
+        // Store the total requested extent in ALL_PIECES_EXTENT.
+        // This can be different than DATA_EXTENT if the algorithm
+        // produces multiple pieces.
+        // NOTE: we store this in outInfo because data info gets
+        // wiped during execute. We move this to data info in
+        // ExecuteDataEnd.
+        outInfo->Set(vtkDataObject::ALL_PIECES_EXTENT(), uExt, 6);
+        }
 
-      if (portInfo->Has(vtkAlgorithm::CAN_PRODUCE_SUB_EXTENT()))
+      // If the algorithm is capable of producing sub-extents, use
+      // an extent translator to break update extent request into
+      // pieces.
+      if (outInfo->Has(vtkAlgorithm::CAN_PRODUCE_SUB_EXTENT()))
         {
         int piece = outInfo->Get(UPDATE_PIECE_NUMBER());
         int ghost = outInfo->Get(UPDATE_NUMBER_OF_GHOST_LEVELS());
-        int* uExt = outInfo->Get(
-          vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT());
-
-        // Store the total requested extent in ALL_PIECES_EXTENT.
-        vtkDataObject* data = outInfo->Get(vtkDataObject::DATA_OBJECT());
-        data->GetInformation()->Set(vtkDataObject::ALL_PIECES_EXTENT(), uExt, 6);
 
         vtkExtentTranslator* et = vtkExtentTranslator::New();
         int execExt[6];
@@ -990,31 +1022,38 @@ vtkStreamingDemandDrivenPipeline
     int numPieces = outInfo->Get(UPDATE_NUMBER_OF_PIECES());
     if (numPieces > 1)
       {
-      vtkInformation* portInfo =
-        this->Algorithm->GetOutputPortInformation(i);
+      vtkDataObject* dobj = outInfo->Get(vtkDataObject::DATA_OBJECT());
 
-      if (portInfo->Has(vtkAlgorithm::CAN_PRODUCE_SUB_EXTENT()))
+      // See ExecuteDataStart for an explanation of this key and
+      // why we move it from outInfo to data info.
+      if (outInfo->Has(vtkDataObject::ALL_PIECES_EXTENT()))
+        {
+        dobj->GetInformation()->Set(vtkDataObject::ALL_PIECES_EXTENT(),
+                                    outInfo->Get(vtkDataObject::ALL_PIECES_EXTENT()),
+                                    6);
+        outInfo->Remove(vtkDataObject::ALL_PIECES_EXTENT());
+        }
+
+      if (outInfo->Has(vtkAlgorithm::CAN_PRODUCE_SUB_EXTENT()))
         {
         int ghost = outInfo->Get(UPDATE_NUMBER_OF_GHOST_LEVELS());
         if (ghost > 0)
           {
-          vtkDataSet* data =
-            vtkDataSet::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
-
-          int* uExt = data->GetInformation()->Get(
-            vtkDataObject::ALL_PIECES_EXTENT());
-
-          int piece = outInfo->Get(UPDATE_PIECE_NUMBER());
-
-          vtkExtentTranslator* et = vtkExtentTranslator::New();
-          int zeroExt[6];
-          et->PieceToExtentThreadSafe(piece, numPieces, 0,
-                                      uExt, zeroExt,
-                                      vtkExtentTranslator::BLOCK_MODE, 0);
-          et->Delete();
-
+          vtkDataSet* data = vtkDataSet::SafeDownCast(dobj);
           if (data)
             {
+            int* uExt = data->GetInformation()->Get(
+              vtkDataObject::ALL_PIECES_EXTENT());
+
+            int piece = outInfo->Get(UPDATE_PIECE_NUMBER());
+
+            vtkExtentTranslator* et = vtkExtentTranslator::New();
+            int zeroExt[6];
+            et->PieceToExtentThreadSafe(piece, numPieces, 0,
+                                        uExt, zeroExt,
+                                        vtkExtentTranslator::BLOCK_MODE, 0);
+            et->Delete();
+
             data->GenerateGhostLevelArray(zeroExt);
             }
           }
@@ -1204,12 +1243,10 @@ int vtkStreamingDemandDrivenPipeline
     // This is a source.
     if (this->Algorithm->GetNumberOfInputPorts() == 0)
       {
-      vtkInformation* portInfo =
-        this->Algorithm->GetOutputPortInformation(outputPort);
       // And cannot handle piece request (i.e. not parallel)
       // and is not a structured source that can produce sub-extents.
       if (!outInfo->Get(CAN_HANDLE_PIECE_REQUEST()) &&
-          !portInfo->Get(vtkAlgorithm::CAN_PRODUCE_SUB_EXTENT()))
+          !outInfo->Get(vtkAlgorithm::CAN_PRODUCE_SUB_EXTENT()))
         {
         // Then don't execute it.
         return 0;
@@ -1263,20 +1300,20 @@ int vtkStreamingDemandDrivenPipeline
       return 1;
       }
 
-      // Check the structured extent.  If the update extent is outside
-      // of the extent and not empty, we need to execute.
-      int updateExtent[6];
-      outInfo->Get(UPDATE_EXTENT(), updateExtent);
+    // Check the structured extent.  If the update extent is outside
+    // of the extent and not empty, we need to execute.
+    int updateExtent[6];
+    outInfo->Get(UPDATE_EXTENT(), updateExtent);
 
-      int dataExtent[6];
-      if (dataInfo->Has(vtkDataObject::ALL_PIECES_EXTENT()))
-        {
-        dataInfo->Get(vtkDataObject::ALL_PIECES_EXTENT(), dataExtent);
-        }
-      else
-        {
-        dataInfo->Get(vtkDataObject::DATA_EXTENT(), dataExtent);
-        }
+    int dataExtent[6];
+    if (dataInfo->Has(vtkDataObject::ALL_PIECES_EXTENT()))
+      {
+      dataInfo->Get(vtkDataObject::ALL_PIECES_EXTENT(), dataExtent);
+      }
+    else
+      {
+      dataInfo->Get(vtkDataObject::DATA_EXTENT(), dataExtent);
+      }
 
     // if the ue is out side the de
     if((updateExtent[0] < dataExtent[0] ||
