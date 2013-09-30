@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkAtomicInt.h
+  Module:    vtkFunctor.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,4 +12,15 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkAtomicInt.h"
+
+#include "vtkFunctor.h"
+
+//--------------------------------------------------------------------------------
+vtkFunctor::vtkFunctor()
+{
+}
+
+//--------------------------------------------------------------------------------
+vtkFunctor::~vtkFunctor()
+{
+}

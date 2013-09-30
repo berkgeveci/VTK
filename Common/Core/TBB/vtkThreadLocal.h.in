@@ -1,0 +1,121 @@
+ /*=========================================================================
+
+  Program:   Visualization Toolkit
+  Module:    vtkThreadLocal.h
+
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  All rights reserved.
+  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+
+     This software is distributed WITHOUT ANY WARRANTY; without even
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+     PURPOSE.  See the above copyright notice for more information.
+
+=========================================================================*/
+// .NAME vtkThreadLocal - A TBB based thread local storage implementation.
+// .SECTION Description
+// A thread local object is one that maintains a copy of an object of the
+// template type for each thread that processes data. vtkThreadLocal
+// creates storage for all threads but the actual objects are created
+// the first time Local() is called. Note that vtkThreadLocal is actually
+// not very thread safe. It can be safely used in a multi-threaded
+// environment becauase Local() returns storage specific to a particular
+// thread, which by default will be accessed sequentially. It is also
+// thread-safe to iterator over vtkThreadLocal as long as each thread
+// creates its own iterators and do not change any of the thread local
+// objects.
+//
+// A common design pattern ins using a thread local storage object is to
+// write/accumulate data to local object when executing in parallel and
+// the having a sequential code block that iterates over the whole storage
+// using the iterators to do the final accumulation.
+
+
+#ifndef __vtkThreadLocal_h
+#define __vtkThreadLocal_h
+
+#include <tbb/enumerable_thread_specific.h>
+
+template <typename T>
+class vtkThreadLocal
+{
+  typedef tbb::enumerable_thread_specific<T> TLS;
+  typedef typename TLS::iterator TLSIter;
+public:
+  // Description:
+  // Default constructor. Creates a default examplar.
+  vtkThreadLocal()
+    {
+    }
+
+  // Description:
+  // Constructor that allows the specification of an exemplar object
+  // which is used when constructing objects when Local() is first called.
+  // Note that a copy of the exemplar is created using its copy constructor.
+  vtkThreadLocal(const T& exemplar) : Internal(exemplar)
+    {
+    }
+
+  // Description:
+  // Returns an object of type T that is local to the current thread.
+  // This needs to be called mainly within a threaded execution path.
+  // It will create a new object (local to the tread so each thread
+  // get their own when calling Local) which is a copy of exemplar as passed
+  // to the constructor (or a default object if no exemplar was provided)
+  // the first time it is called. After the first time, it will return
+  // the same object.
+  T& Local()
+    {
+      return this->Internal.local();
+    }
+
+  // Description:
+  // Subset of the standard iterator API.
+  // The most common design patter is to use iterators in a sequential
+  // code block and to use only the thread local objects in parallel
+  // code blocks.
+  class iterator
+  {
+  public:
+    iterator& operator++(int)
+      {
+        ++this->Iter;
+        return *this;
+      }
+
+    bool operator!=(const iterator& other)
+      {
+        return this->Iter != other.Iter;
+      }
+
+    T& operator*()
+      {
+        return *this->Iter;
+      }
+
+  private:
+    TLSIter Iter;
+
+    friend class vtkThreadLocal<T>;
+  };
+
+  iterator begin()
+    {
+      iterator iter;
+      iter.Iter = this->Internal.begin();
+      return iter;
+    };
+
+  iterator end()
+    {
+      iterator iter;
+      iter.Iter = this->Internal.end();
+      return iter;
+    }
+
+private:
+  TLS Internal;
+};
+
+#endif
+// VTK-HeaderTest-Exclude: vtkThreadLocal.h

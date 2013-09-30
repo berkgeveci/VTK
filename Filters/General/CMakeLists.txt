@@ -84,6 +84,7 @@ set(Module_SRCS
   vtkWarpScalar.cxx
   vtkWarpTo.cxx
   vtkWarpVector.cxx
+  vtkSMPWarpVector.cxx
   vtkYoungsMaterialInterface.cxx
 
   vtkMarchingContourFilter.cxx

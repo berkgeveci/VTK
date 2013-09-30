@@ -17,6 +17,7 @@ vtk_add_test_cxx(
   TestIntersectionPolyDataFilter2.cxx,NO_VALID
   TestRectilinearGridToPointSet.cxx,NO_VALID
   TestReflectionFilter.cxx,NO_VALID
+  TestSMPWarp.cxx,NO_VALID
   TestUncertaintyTubeFilter.cxx
   )
 
