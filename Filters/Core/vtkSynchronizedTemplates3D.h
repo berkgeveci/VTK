@@ -129,7 +129,7 @@ public:
   int *GetExecuteExtent() {return this->ExecuteExtent;}
   void ThreadedExecute(vtkImageData *data, vtkInformation *inInfo,
                        vtkInformation *outInfo,
-                       int *exExt, vtkDataArray *inScalars);
+                       vtkDataArray *inScalars);
 
   // Description:
   // Determines the chunk size fro streaming.  This filter will act like a
@@ -161,6 +161,9 @@ protected:
   int ArrayComponent;
 
   int GenerateTriangles;
+
+  static vtkInformationIntegerVectorKey* EXECUTE_EXTENT();
+
 private:
   vtkSynchronizedTemplates3D(const vtkSynchronizedTemplates3D&);  // Not implemented.
   void operator=(const vtkSynchronizedTemplates3D&);  // Not implemented.

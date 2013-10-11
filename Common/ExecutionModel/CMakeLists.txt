@@ -45,6 +45,7 @@ SET(Module_SRCS
   vtkStructuredGridAlgorithm.cxx
   vtkTableAlgorithm.cxx
   vtkTableExtentTranslator.cxx
+  vtkThreadedCompositeDataPipeline.cxx
   vtkThreadedImageAlgorithm.cxx
   vtkThreadedStreamingPipeline.cxx
   vtkTreeAlgorithm.cxx
