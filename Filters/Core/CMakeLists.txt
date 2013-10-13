@@ -12,6 +12,7 @@ set(Module_SRCS
   vtkConnectivityFilter.cxx
   vtkContourFilter.cxx
   vtkContourGrid.cxx
+  vtkSMPContourGrid.cxx
   vtkContourHelper.cxx
   vtkDataObjectGenerator.cxx
   vtkDataObjectToDataSetFilter.cxx

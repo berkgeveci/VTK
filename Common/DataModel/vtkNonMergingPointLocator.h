@@ -60,6 +60,8 @@ public:
   // index of the point is returned via ptId.
   virtual int InsertUniquePoint( const double x[3], vtkIdType & ptId );
 
+  void SetPoints(vtkPoints* pts);
+
 protected:
   vtkNonMergingPointLocator() { };
   ~vtkNonMergingPointLocator() { };

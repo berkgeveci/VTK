@@ -398,7 +398,7 @@ int vtkContourFilter::RequestData(
   vtkCellData *inCd=input->GetCellData(), *outCd=output->GetCellData();
 
   vtkDebugMacro(<< "Executing contour filter");
-  if (input->GetDataObjectType() == VTK_UNSTRUCTURED_GRID)
+  if (0 && input->GetDataObjectType() == VTK_UNSTRUCTURED_GRID)
     {
     vtkDebugMacro(<< "Processing unstructured grid");
     vtkContourGrid *cgrid;

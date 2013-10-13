@@ -19,6 +19,8 @@
 
 vtkStandardNewMacro( vtkNonMergingPointLocator );
 
+vtkCxxSetObjectMacro(vtkNonMergingPointLocator, Points, vtkPoints);
+
 //----------------------------------------------------------------------------
 int vtkNonMergingPointLocator::InsertUniquePoint
   ( const double x[3], vtkIdType & ptId )
