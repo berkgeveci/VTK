@@ -52,16 +52,13 @@ vtkParallelUtilities::~vtkParallelUtilities()
 //--------------------------------------------------------------------------------
 void vtkParallelUtilities::Initialize(int)
 {
+  vtkParallelUtilitiesCS.Lock();
   if (!vtkParallelUtilitiesInitialized)
     {
-    vtkParallelUtilitiesCS.Lock();
-    if (!vtkParallelUtilitiesInitialized)
-      {
-      static vtkParallelUtilitiesInit aInit;
-      vtkParallelUtilitiesInitialized = true;
-      }
-    vtkParallelUtilitiesCS.Unlock();
+    static vtkParallelUtilitiesInit aInit;
+    vtkParallelUtilitiesInitialized = true;
     }
+  vtkParallelUtilitiesCS.Unlock();
 }
 
 namespace

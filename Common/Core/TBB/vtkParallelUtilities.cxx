@@ -72,16 +72,13 @@ vtkParallelUtilities::~vtkParallelUtilities()
 //--------------------------------------------------------------------------------
 void vtkParallelUtilities::Initialize(int numThreads)
 {
+  vtkParallelUtilitiesCS.Lock();
   if (!vtkParallelUtilitiesInitialized)
     {
-    vtkParallelUtilitiesCS.Lock();
-    if (!vtkParallelUtilitiesInitialized)
-      {
-      static vtkParallelUtilitiesInit aInit(numThreads);
-      vtkParallelUtilitiesInitialized = true;
-      }
-    vtkParallelUtilitiesCS.Unlock();
+    static vtkParallelUtilitiesInit aInit(numThreads);
+    vtkParallelUtilitiesInitialized = true;
     }
+  vtkParallelUtilitiesCS.Unlock();
 }
 
 //--------------------------------------------------------------------------------
@@ -90,8 +87,6 @@ void vtkParallelUtilities::ForEach(vtkIdType first,
                                    const vtkFunctor* op,
                                    int grain)
 {
-  vtkParallelUtilities::Initialize();
-
   vtkIdType n = last - first;
   if (!n)
     {
