@@ -27,6 +27,7 @@
 #include "vtkObject.h"
 
 class vtkFunctor;
+class vtkInitializableFunctor;
 
 class VTKCOMMONCORE_EXPORT vtkParallelUtilities : public vtkObject
 {
@@ -46,6 +47,12 @@ public:
   static void ForEach(vtkIdType first,
                       vtkIdType last,
                       const vtkFunctor* op,
+                      int grain=0);
+
+  // Description:
+  static void ForEach(vtkIdType first,
+                      vtkIdType last,
+                      vtkInitializableFunctor* op,
                       int grain=0);
 
   // Description:

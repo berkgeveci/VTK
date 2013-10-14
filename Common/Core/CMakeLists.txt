@@ -136,6 +136,7 @@ SET(Module_SRCS
   vtkInformationVariantKey.cxx
   vtkInformationVariantVectorKey.cxx
   vtkInformationVector.cxx
+  vtkInitializableFunctor.cxx
   vtkInstantiator.cxx
   vtkIntArray.cxx
   vtkIOStream.cxx
@@ -447,6 +448,7 @@ set_source_files_properties(
   vtkInformationUnsignedLongKey
   vtkInformationVariantKey
   vtkInformationVariantVectorKey
+  vtkInitializableFunctor
   vtkObjectBase
   vtkObjectFactory
   vtkOldStyleCallbackCommand
@@ -474,6 +476,7 @@ set_source_files_properties(
   vtkGarbageCollectorManager.cxx
   vtkIOStream.cxx
   vtkIndent.cxx
+  vtkInitializableFunctor.cxx
   vtkLargeInteger.cxx
   vtkOStrStreamWrapper.cxx
   vtkOStreamWrapper.cxx

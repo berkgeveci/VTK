@@ -28,8 +28,9 @@
 #include "vtkPointLocator.h"
 
 #include "vtkParallelUtilities.h"
-#include "vtkFunctor.h"
+#include "vtkInitializableFunctor.h"
 #include "vtkThreadLocal.h"
+#include "vtkThreadLocalObject.h"
 
 #include <math.h>
 
@@ -45,21 +46,7 @@ vtkSMPContourGrid::~vtkSMPContourGrid()
 {
 }
 
-namespace
-{
-vtkThreadLocal<bool> Initialized;
-
-vtkThreadLocal<vtkGenericCell*> Cell;
-vtkThreadLocal<vtkPoints*> NewPts;
-vtkThreadLocal<vtkCellArray*> NewVerts;
-vtkThreadLocal<vtkCellArray*> NewLines;
-vtkThreadLocal<vtkCellArray*> NewPolys;
-vtkThreadLocal<vtkDataArray*> CellScalars;
-vtkThreadLocal<vtkPolyData*> Output;
-vtkThreadLocal<vtkNonMergingPointLocator*> Locator;
-}
-
-class vtkContourGridFunctor : public vtkFunctor
+class vtkContourGridFunctor : public vtkInitializableFunctor
 {
   vtkSMPContourGrid* Filter;
 
@@ -68,12 +55,39 @@ class vtkContourGridFunctor : public vtkFunctor
 
   double* Values;
 
+  mutable vtkThreadLocal<vtkDataArray*> CellScalars;
+
+  mutable vtkThreadLocalObject<vtkGenericCell> Cell;
+  mutable vtkThreadLocalObject<vtkPoints> NewPts;
+  mutable vtkThreadLocalObject<vtkCellArray> NewVerts;
+  mutable vtkThreadLocalObject<vtkCellArray> NewLines;
+  mutable vtkThreadLocalObject<vtkCellArray> NewPolys;
+  mutable vtkThreadLocalObject<vtkPolyData> Output;
+  mutable vtkThreadLocalObject<vtkNonMergingPointLocator> Locator;
+
+public:
+
+  vtkContourGridFunctor(vtkSMPContourGrid* filter,
+                        vtkUnstructuredGrid* input,
+                        vtkDataArray* inScalars,
+                        double* values) : Filter(filter), Input(input), InScalars(inScalars), Values(values)
+    {
+    }
+
+  ~vtkContourGridFunctor()
+    {
+      vtkThreadLocal<vtkDataArray*>::iterator cellScalarsIter =
+        this->CellScalars.begin();
+      while(cellScalarsIter != this->CellScalars.end())
+        {
+        (*cellScalarsIter)->Delete();
+        ++cellScalarsIter;
+        }
+    }
+
   void Initialize() const
     {
-      Cell.Local() = vtkGenericCell::New();
-
-      vtkPoints*& newPts = NewPts.Local();
-      newPts = vtkPoints::New();
+      vtkPoints*& newPts = this->NewPts.Local();
 
       // set precision for the points in the output
       if(this->Filter->GetOutputPointsPrecision() == vtkAlgorithm::DEFAULT_PRECISION)
@@ -101,29 +115,24 @@ class vtkContourGridFunctor : public vtkFunctor
 
       newPts->Allocate(estimatedSize, estimatedSize);
 
-      vtkNonMergingPointLocator*& locator = Locator.Local();
-      locator = vtkNonMergingPointLocator::New();
+      vtkNonMergingPointLocator*& locator = this->Locator.Local();
       locator->SetPoints(newPts);
 
-      vtkCellArray*& newVerts = NewVerts.Local();
-      newVerts = vtkCellArray::New();
+      vtkCellArray*& newVerts = this->NewVerts.Local();
       newVerts->Allocate(estimatedSize,estimatedSize);
 
-      vtkCellArray*& newLines = NewLines.Local();
-      newLines = vtkCellArray::New();
+      vtkCellArray*& newLines = this->NewLines.Local();
       newLines->Allocate(estimatedSize,estimatedSize);
 
-      vtkCellArray*& newPolys = NewPolys.Local();
-      newPolys = vtkCellArray::New();
+      vtkCellArray*& newPolys = this->NewPolys.Local();
       newPolys->Allocate(estimatedSize,estimatedSize);
 
-      vtkDataArray*& cellScalars = CellScalars.Local();
+      vtkDataArray*& cellScalars = this->CellScalars.Local();
       cellScalars = this->InScalars->NewInstance();
       cellScalars->SetNumberOfComponents(this->InScalars->GetNumberOfComponents());
       cellScalars->Allocate(VTK_CELL_SIZE*this->InScalars->GetNumberOfComponents());
 
-      vtkPolyData*& output = Output.Local();
-      output = vtkPolyData::New();
+      vtkPolyData*& output = this->Output.Local();
 
       vtkPointData* outPd = output->GetPointData();
       vtkCellData* outCd = output->GetCellData();
@@ -135,72 +144,25 @@ class vtkContourGridFunctor : public vtkFunctor
       vtkCellData* inCd = this->Input->GetCellData();
       outPd->InterpolateAllocate(inPd, estimatedSize, estimatedSize);
       outCd->CopyAllocate(inCd, estimatedSize, estimatedSize);
-
-      Initialized.Local() = true;
     }
 
-public:
-
-  vtkContourGridFunctor(vtkSMPContourGrid* filter,
-                        vtkUnstructuredGrid* input,
-                        vtkDataArray* inScalars,
-                        double* values) : Filter(filter), Input(input), InScalars(inScalars), Values(values)
-    {
-    }
-
-  ~vtkContourGridFunctor()
-    {
-      vtkThreadLocal<vtkGenericCell*>::iterator cellIter =
-        Cell.begin();
-      while(cellIter != Cell.end())
-        {
-        (*cellIter)->Delete();
-        cellIter++;
-        }
-      vtkThreadLocal<vtkPoints*>::iterator newPtsIter =
-        NewPts.begin();
-      while(newPtsIter != NewPts.end())
-        {
-        (*newPtsIter)->Delete();
-        newPtsIter++;
-        }
-      vtkThreadLocal<vtkDataArray*>::iterator cellScalarsIter =
-        CellScalars.begin();
-      while(cellScalarsIter != CellScalars.end())
-        {
-        (*cellScalarsIter)->Delete();
-        cellScalarsIter++;
-        }
-      vtkThreadLocal<vtkNonMergingPointLocator*>::iterator locIter =
-        Locator.begin();
-      while(locIter != Locator.end())
-        {
-        (*locIter)->Delete();
-        locIter++;
-        }
-    }
 
   void operator()(vtkIdType begin, vtkIdType end) const
     {
-      if (!Initialized.Local())
-        {
-        this->Initialize();
-        }
-
-      vtkGenericCell* cell = Cell.Local();
-      vtkDataArray* cs = CellScalars.Local();
+      vtkGenericCell* cell = this->Cell.Local();
+      vtkDataArray* cs = this->CellScalars.Local();
       vtkPointData* inPd = this->Input->GetPointData();
       vtkCellData* inCd = this->Input->GetCellData();
 
-      vtkPolyData* output = Output.Local();
+      vtkPolyData* output = this->Output.Local();
       vtkPointData* outPd = output->GetPointData();
       vtkCellData* outCd = output->GetCellData();
 
-      vtkCellArray* vrts = NewVerts.Local();
-      vtkCellArray* lines = NewLines.Local();
-      vtkCellArray* polys = NewPolys.Local();
+      vtkCellArray* vrts = this->NewVerts.Local();
+      vtkCellArray* lines = this->NewLines.Local();
+      vtkCellArray* polys = this->NewPolys.Local();
 
-      vtkNonMergingPointLocator* loc = Locator.Local();
+      vtkNonMergingPointLocator* loc = this->Locator.Local();
 
       for (vtkIdType i=begin; i<end; i++)
         {
@@ -221,6 +183,58 @@ public:
                       i,
                       outCd);
         }
+    }
+
+  void Finalize()
+    {
+      vtkThreadLocalObject<vtkPolyData>::iterator outIter =
+        this->Output.begin();
+      vtkThreadLocalObject<vtkCellArray>::iterator newVertsIter =
+        this->NewVerts.begin();
+      vtkThreadLocalObject<vtkCellArray>::iterator newLinesIter =
+        this->NewLines.begin();
+      vtkThreadLocalObject<vtkCellArray>::iterator newPolysIter =
+        this->NewPolys.begin();
+      while(outIter != this->Output.end())
+        {
+        vtkPolyData* output = *outIter;
+        vtkCellArray* newVerts = *newVertsIter;
+        vtkCellArray* newLines = *newLinesIter;
+        vtkCellArray* newPolys = *newPolysIter;
+
+        if (newVerts->GetNumberOfCells())
+          {
+          output->SetVerts(newVerts);
+          }
+
+        if (newLines->GetNumberOfCells())
+          {
+          output->SetLines(newLines);
+          }
+
+        if (newPolys->GetNumberOfCells())
+          {
+          output->SetPolys(newPolys);
+          }
+
+        output->Squeeze();
+
+        ++newVertsIter;
+        ++newLinesIter;
+        ++newPolysIter;
+        ++outIter;
+        }
+
+      vtkIdType totalNumCells = 0;
+      outIter = this->Output.begin();
+      while(outIter != this->Output.end())
+        {
+        vtkPolyData* anOutput = *outIter;
+        totalNumCells += anOutput->GetNumberOfCells();
+        ++outIter;
+        }
+      cout << "Total number of cells: " << totalNumCells << endl;
+
     }
 };
 
@@ -249,170 +263,6 @@ int vtkSMPContourGrid::RequestData(
 
   vtkContourGridFunctor functor(this, input, inScalars, values);
   vtkParallelUtilities::ForEach(0, numCells, &functor);
-
-  vtkThreadLocal<vtkPolyData*>::iterator outIter =
-    Output.begin();
-  vtkThreadLocal<vtkCellArray*>::iterator newVertsIter =
-    NewVerts.begin();
-  vtkThreadLocal<vtkCellArray*>::iterator newLinesIter =
-    NewLines.begin();
-  vtkThreadLocal<vtkCellArray*>::iterator newPolysIter =
-    NewPolys.begin();
-  while(outIter != Output.end())
-    {
-    vtkPolyData* output = *outIter;
-    vtkCellArray* newVerts = *newVertsIter;
-    vtkCellArray* newLines = *newLinesIter;
-    vtkCellArray* newPolys = *newPolysIter;
-
-    if (newVerts->GetNumberOfCells())
-      {
-      output->SetVerts(newVerts);
-      }
-
-    if (newLines->GetNumberOfCells())
-      {
-      output->SetLines(newLines);
-      }
-
-    if (newPolys->GetNumberOfCells())
-      {
-      output->SetPolys(newPolys);
-      }
-
-    output->Squeeze();
-
-    newVerts->Delete();
-    newLines->Delete();
-    newPolys->Delete();
-    newVertsIter++;
-    newLinesIter++;
-    newPolysIter++;
-    outIter++;
-    }
-
-  vtkIdType totalNumCells = 0;
-  outIter = Output.begin();
-  while(outIter != Output.end())
-    {
-    vtkPolyData* anOutput = *outIter;
-    totalNumCells += anOutput->GetNumberOfCells();
-    anOutput->Delete();
-    outIter++;
-    }
-  cout << "Total number of cells: " << totalNumCells << endl;
-
-  return 1;
-
-  //
-  // Create objects to hold output of contour operation. First estimate
-  // allocation size.
-  //
-  vtkIdType estimatedSize=static_cast<vtkIdType>(
-    pow(static_cast<double>(numCells),.75));
-  estimatedSize = estimatedSize / 1024 * 1024; //multiple of 1024
-  if (estimatedSize < 1024)
-    {
-    estimatedSize = 1024;
-    }
-
-  if (!this->ComputeNormals)
-    {
-    outPd->CopyScalarsOff();
-    }
-  outPd->InterpolateAllocate(inPd, estimatedSize, estimatedSize);
-  outCd->CopyAllocate(inCd, estimatedSize, estimatedSize);
-
-
-  vtkNew<vtkPoints> newPts;
-
-  // set precision for the points in the output
-  if(this->GetOutputPointsPrecision() == vtkAlgorithm::DEFAULT_PRECISION)
-    {
-    newPts->SetDataType(input->GetPoints()->GetDataType());
-    }
-  else if(this->GetOutputPointsPrecision() == vtkAlgorithm::SINGLE_PRECISION)
-    {
-    newPts->SetDataType(VTK_FLOAT);
-    }
-  else if(this->GetOutputPointsPrecision() == vtkAlgorithm::DOUBLE_PRECISION)
-    {
-    newPts->SetDataType(VTK_DOUBLE);
-    }
-
-  newPts->Allocate(estimatedSize, estimatedSize);
-
-  vtkNew<vtkCellArray> newVerts;
-  newVerts->Allocate(estimatedSize,estimatedSize);
-
-  vtkNew<vtkCellArray> newLines;
-  newLines->Allocate(estimatedSize,estimatedSize);
-
-  vtkNew<vtkCellArray> newPolys;
-  newPolys->Allocate(estimatedSize,estimatedSize);
-
-  vtkSmartPointer<vtkDataArray> cellScalars;
-  cellScalars.TakeReference(inScalars->NewInstance());
-  cellScalars->SetNumberOfComponents(inScalars->GetNumberOfComponents());
-  cellScalars->Allocate(VTK_CELL_SIZE*inScalars->GetNumberOfComponents());
-
-  vtkNew<vtkNonMergingPointLocator> locator;
-  locator->SetPoints(newPts.GetPointer());
-
-   /*
-   vtkNew<vtkPointLocator> locator;
-   locator->InitPointInsertion (newPts.GetPointer(),
-                                input->GetBounds(),
-                                input->GetNumberOfPoints());
-   */
-
-
-   vtkNew<vtkGenericCell> genericCell;
-
-   vtkDataArray* cs = cellScalars.GetPointer();
-   vtkPointLocator* loc = locator.GetPointer();
-   vtkCellArray* vrts = newVerts.GetPointer();
-   vtkCellArray* lines = newLines.GetPointer();
-   vtkCellArray* polys = newPolys.GetPointer();
-   vtkGenericCell* cell = genericCell.GetPointer();
-
-   for (vtkIdType i=0; i<numCells; i++)
-     {
-     input->GetCell(i, cell);
-
-     vtkIdList* cellPts = cell->GetPointIds();
-     inScalars->GetTuples(cellPts, cs);
-
-     cell->Contour(values[0],
-                   cs,
-                   loc,
-                   vrts,
-                   lines,
-                   polys,
-                   inPd,
-                   outPd,
-                   inCd,
-                   i,
-                   outCd);
-     }
-
-  if (newVerts->GetNumberOfCells())
-    {
-    output->SetVerts(newVerts.GetPointer());
-    }
-
-  if (newLines->GetNumberOfCells())
-    {
-    output->SetLines(newLines.GetPointer());
-    }
-
-  if (newPolys->GetNumberOfCells())
-    {
-    output->SetPolys(newPolys.GetPointer());
-    }
-
-  locator->Initialize();//releases leftover memory
-  output->Squeeze();
 
   return 1;
 }

@@ -87,7 +87,7 @@ public:
   void Finalize()
     {
       TLSIter end = tlBounds->end();
-      for (TLSIter itr = tlBounds->begin(); itr != end; itr++)
+      for (TLSIter itr = tlBounds->begin(); itr != end; ++itr)
         {
         std::vector<double>& aBounds = *itr;
         bounds[0] = bounds[0] < aBounds[0] ? bounds[0] : aBounds[0];

@@ -58,7 +58,7 @@ public:
       this->Initialize();
     }
 
-  // Description:
+++  // Description:
   // Returns an object of type T that is local to the current thread.
   // This needs to be called mainly within a threaded execution path.
   // It will create a new object (local to the tread so each thread
@@ -85,7 +85,7 @@ public:
   class iterator
   {
   public:
-    iterator& operator++(int)
+    iterator& operator++()
       {
         this->InitIter++;
         this->Iter++;

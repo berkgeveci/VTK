@@ -63,16 +63,16 @@ void vtkParallelUtilities::Initialize(int)
 
 namespace
 {
-inline void vtkParallelUtilitiesDoFor(int32_t b, int32_t e, int32_t, const vtkFunctor* o )
-  {
-    (*o)(b, e);
-  }
+template <typename T>
+inline void vtkParallelUtilitiesDoFor(int32_t b, int32_t e, int32_t, const T* o )
+{
+  o->Execute(b, e);
 }
 
-//--------------------------------------------------------------------------------
-void vtkParallelUtilities::ForEach(vtkIdType first,
+template <typename T>
+void vtkParallelUtilitiesForEach(vtkIdType first,
                                    vtkIdType last,
-                                   const vtkFunctor* op,
+                                   const T* op,
                                    int grain)
 {
   vtkParallelUtilities::Initialize();
@@ -90,9 +90,28 @@ void vtkParallelUtilities::ForEach(vtkIdType first,
     {
     kaapic_foreach_attr_set_grains(&attr, grain, grain);
     }
-  kaapic_foreach( first, last, &attr, 1, vtkParallelUtilitiesDoFor, op );
+  kaapic_foreach( first, last, &attr, 1, vtkParallelUtilitiesDoFor<T>, op );
   kaapic_end_parallel(KAAPIC_FLAG_DEFAULT);
   kaapic_foreach_attr_destroy(&attr);
+}
+}
+
+//--------------------------------------------------------------------------------
+void vtkParallelUtilities::ForEach(vtkIdType first,
+                                   vtkIdType last,
+                                   const vtkFunctor* op,
+                                   int grain)
+{
+  vtkParallelUtilitiesForEach(first, last, op, grain);
+}
+
+//--------------------------------------------------------------------------------
+void vtkParallelUtilities::ForEach(vtkIdType first,
+                                   vtkIdType last,
+                                   vtkInitializableFunctor* op,
+                                   int grain)
+{
+  vtkParallelUtilitiesForEach(first, last, op, grain);
 }
 
 //--------------------------------------------------------------------------------

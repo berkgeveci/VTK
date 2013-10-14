@@ -77,7 +77,7 @@ public:
   class iterator
   {
   public:
-    iterator& operator++(int)
+    iterator& operator++()
       {
         ++this->Iter;
         return *this;

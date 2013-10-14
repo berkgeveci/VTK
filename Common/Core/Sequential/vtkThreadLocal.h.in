@@ -85,7 +85,7 @@ public:
   class iterator
   {
   public:
-    iterator& operator++(int)
+    iterator& operator++()
       {
         this->InitIter++;
         this->Iter++;

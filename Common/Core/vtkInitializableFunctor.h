@@ -12,25 +12,25 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkFunctor - A simple base-class that defined operator (). Used by parallel execution code.
+// .NAME vtkFunctor -
 // .SECTION Description
-// vtkFunctor is a simple base-class that can be subclassed to defined
-// an execution operator that can process a range of elements. This
-// class is used by vtkParallelUtilities to process elements in parallel.
-// Note that the parallel execution functions do not create any copies
-// of their functor arguments. So it is up to the developer to make sure
-// that functors do not change their state when execution operator(). If
-// you need to store execution specific data, consider using vtkThreadLocal.
 
-#ifndef __vtkFunctor_h__
-#define __vtkFunctor_h__
+#ifndef __vtkInitializableFunctor_h__
+#define __vtkInitializableFunctor_h__
 
 #include "vtkType.h"
 #include "vtkCommonCoreModule.h" // For export macro
+#include "vtkThreadLocal.h" // For Initialized
 
-class VTKCOMMONCORE_EXPORT vtkFunctor
+class VTKCOMMONCORE_EXPORT vtkInitializableFunctor
 {
 public:
+  // Description:
+  virtual void Initialize() const = 0;
+
+  // Description:
+  virtual void Finalize() {}
+
   // Description:
   // This is the execution operator that needs to be defined
   // by subclasses in order to implement an operation that can
@@ -40,14 +40,15 @@ public:
 
   // Description:
   // Default construtor and destructor.
-  vtkFunctor();
-  virtual ~vtkFunctor();
+  vtkInitializableFunctor();
+  virtual ~vtkInitializableFunctor();
 
   // Description:
-  void Execute(vtkIdType begin, vtkIdType end) const
-  {
-    this->operator()(begin, end);
-  }
+  void Execute(vtkIdType begin, vtkIdType end) const;
+
+private:
+  mutable vtkThreadLocal<bool> Initialized;
+
 };
 
 #endif

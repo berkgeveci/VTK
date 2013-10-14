@@ -17,6 +17,7 @@
 
 #include "vtkCriticalSection.h"
 #include "vtkFunctor.h"
+#include "vtkInitializableFunctor.h"
 #include "vtkObjectFactory.h"
 
 #include <tbb/blocked_range.h>
@@ -40,23 +41,46 @@ static vtkSimpleCriticalSection vtkParallelUtilitiesCS;
 
 namespace
 {
+template <typename T>
 class FuncCall
 {
-  const vtkFunctor* o;
+  const T* o;
 
 public:
   void operator() (const tbb::blocked_range<vtkIdType>& r) const
     {
-      (*o)(r.begin(), r.end());
+      o->Execute(r.begin(), r.end());
     }
 
-  FuncCall (const vtkFunctor* _o) : o(_o)
+  FuncCall (const T* _o) : o(_o)
     {
     }
   ~FuncCall ()
     {
     }
 };
+
+template <typename T>
+void vtkParallelUtilitiesForEach(vtkIdType first,
+                                 vtkIdType last,
+                                 const T* op,
+                                 int grain)
+{
+  vtkIdType n = last - first;
+  if (!n)
+    {
+    return;
+    }
+  if (grain > 0)
+    {
+    tbb::parallel_for(tbb::blocked_range<vtkIdType>(first, last, grain), FuncCall<T>(op));
+    }
+  else
+    {
+    tbb::parallel_for(tbb::blocked_range<vtkIdType>(first, last), FuncCall<T>(op));
+    }
+}
+
 }
 
 //--------------------------------------------------------------------------------
@@ -81,25 +105,24 @@ void vtkParallelUtilities::Initialize(int numThreads)
   vtkParallelUtilitiesCS.Unlock();
 }
 
+
 //--------------------------------------------------------------------------------
 void vtkParallelUtilities::ForEach(vtkIdType first,
                                    vtkIdType last,
                                    const vtkFunctor* op,
                                    int grain)
 {
-  vtkIdType n = last - first;
-  if (!n)
-    {
-    return;
-    }
-  if (grain > 0)
-    {
-    tbb::parallel_for(tbb::blocked_range<vtkIdType>(first, last, grain), FuncCall(op));
-    }
-  else
-    {
-    tbb::parallel_for(tbb::blocked_range<vtkIdType>(first, last), FuncCall(op));
-    }
+  vtkParallelUtilitiesForEach(first, last, op, grain);
+}
+
+//--------------------------------------------------------------------------------
+void vtkParallelUtilities::ForEach(vtkIdType first,
+                                   vtkIdType last,
+                                   vtkInitializableFunctor* op,
+                                   int grain)
+{
+  vtkParallelUtilitiesForEach(first, last, op, grain);
+  op->Finalize();
 }
 
 //--------------------------------------------------------------------------------
