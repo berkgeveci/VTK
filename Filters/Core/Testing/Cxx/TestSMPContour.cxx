@@ -23,6 +23,7 @@
 #include "vtkTimerLog.h"
 #include "vtkNonMergingPointLocator.h"
 #include "vtkParallelUtilities.h"
+#include "vtkXMLMultiBlockDataWriter.h"
 
 const int EXTENT = 50;
 int TestSMPContour(int, char *[])
@@ -77,8 +78,16 @@ int TestSMPContour(int, char *[])
   tl->StopTimer();
 
   cout << "SMP Contour grid: " << endl;
-  cout << "Number of cells: " << cg2->GetOutput()->GetNumberOfCells() << endl;
+  //cout << "Number of cells: " << cg2->GetOutput()->GetNumberOfCells() << endl;
   cout << "Time: " << tl->GetElapsedTime() << endl;
+
+#if 1
+  vtkNew<vtkXMLMultiBlockDataWriter> writer;
+  writer->SetInputData(cg2->GetOutputDataObject(0));
+  writer->SetFileName("contour.vtm");
+  writer->SetDataModeToAscii();
+  writer->Write();
+#endif
 
   return EXIT_SUCCESS;
 }

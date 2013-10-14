@@ -26,11 +26,13 @@
 #include "vtkSmartPointer.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkPointLocator.h"
-
+#include "vtkMultiBlockDataSet.h"
+#include "vtkMultiPieceDataSet.h"
 #include "vtkParallelUtilities.h"
 #include "vtkInitializableFunctor.h"
 #include "vtkThreadLocal.h"
 #include "vtkThreadLocalObject.h"
+#include "vtkInformation.h"
 
 #include <math.h>
 
@@ -53,6 +55,8 @@ class vtkContourGridFunctor : public vtkInitializableFunctor
   vtkUnstructuredGrid* Input;
   vtkDataArray* InScalars;
 
+  vtkMultiBlockDataSet* Output;
+
   double* Values;
 
   mutable vtkThreadLocal<vtkDataArray*> CellScalars;
@@ -62,15 +66,21 @@ class vtkContourGridFunctor : public vtkInitializableFunctor
   mutable vtkThreadLocalObject<vtkCellArray> NewVerts;
   mutable vtkThreadLocalObject<vtkCellArray> NewLines;
   mutable vtkThreadLocalObject<vtkCellArray> NewPolys;
-  mutable vtkThreadLocalObject<vtkPolyData> Output;
+  mutable vtkThreadLocalObject<vtkPolyData> Outputs;
   mutable vtkThreadLocalObject<vtkNonMergingPointLocator> Locator;
+  //mutable vtkThreadLocalObject<vtkPointLocator> Locator;
 
 public:
 
   vtkContourGridFunctor(vtkSMPContourGrid* filter,
                         vtkUnstructuredGrid* input,
                         vtkDataArray* inScalars,
-                        double* values) : Filter(filter), Input(input), InScalars(inScalars), Values(values)
+                        double* values,
+                        vtkMultiBlockDataSet* output) : Filter(filter),
+                                                        Input(input),
+                                                        InScalars(inScalars),
+                                                        Values(values),
+                                                        Output(output)
     {
     }
 
@@ -87,6 +97,8 @@ public:
 
   void Initialize() const
     {
+      vtkPolyData*& output = this->Outputs.Local();
+
       vtkPoints*& newPts = this->NewPts.Local();
 
       // set precision for the points in the output
@@ -103,6 +115,8 @@ public:
         newPts->SetDataType(VTK_DOUBLE);
         }
 
+      output->SetPoints(newPts);
+
       vtkIdType numCells = this->Input->GetNumberOfCells();
 
       vtkIdType estimatedSize=static_cast<vtkIdType>(
@@ -118,6 +132,11 @@ public:
       vtkNonMergingPointLocator*& locator = this->Locator.Local();
       locator->SetPoints(newPts);
 
+      // vtkPointLocator*& locator = this->Locator.Local();
+      // locator->InitPointInsertion (newPts,
+      //                              this->Input->GetBounds(),
+      //                              this->Input->GetNumberOfPoints());
+
       vtkCellArray*& newVerts = this->NewVerts.Local();
       newVerts->Allocate(estimatedSize,estimatedSize);
 
@@ -131,8 +150,6 @@ public:
       cellScalars = this->InScalars->NewInstance();
       cellScalars->SetNumberOfComponents(this->InScalars->GetNumberOfComponents());
       cellScalars->Allocate(VTK_CELL_SIZE*this->InScalars->GetNumberOfComponents());
-
-      vtkPolyData*& output = this->Output.Local();
 
       vtkPointData* outPd = output->GetPointData();
       vtkCellData* outCd = output->GetCellData();
@@ -154,7 +171,7 @@ public:
       vtkPointData* inPd = this->Input->GetPointData();
       vtkCellData* inCd = this->Input->GetCellData();
 
-      vtkPolyData* output = this->Output.Local();
+      vtkPolyData* output = this->Outputs.Local();
       vtkPointData* outPd = output->GetPointData();
       vtkCellData* outCd = output->GetCellData();
 
@@ -163,6 +180,7 @@ public:
       vtkCellArray* polys = this->NewPolys.Local();
 
       vtkNonMergingPointLocator* loc = this->Locator.Local();
+      //vtkPointLocator* loc = this->Locator.Local();
 
       for (vtkIdType i=begin; i<end; i++)
         {
@@ -187,15 +205,18 @@ public:
 
   void Finalize()
     {
+      vtkNew<vtkMultiPieceDataSet> mp;
+      int count = 0;
+
       vtkThreadLocalObject<vtkPolyData>::iterator outIter =
-        this->Output.begin();
+        this->Outputs.begin();
       vtkThreadLocalObject<vtkCellArray>::iterator newVertsIter =
         this->NewVerts.begin();
       vtkThreadLocalObject<vtkCellArray>::iterator newLinesIter =
         this->NewLines.begin();
       vtkThreadLocalObject<vtkCellArray>::iterator newPolysIter =
         this->NewPolys.begin();
-      while(outIter != this->Output.end())
+      while(outIter != this->Outputs.end())
         {
         vtkPolyData* output = *outIter;
         vtkCellArray* newVerts = *newVertsIter;
@@ -219,15 +240,19 @@ public:
 
         output->Squeeze();
 
+        mp->SetPiece(count++, output);
+
         ++newVertsIter;
         ++newLinesIter;
         ++newPolysIter;
         ++outIter;
         }
 
+      this->Output->SetBlock(0, mp.GetPointer());
+
       vtkIdType totalNumCells = 0;
-      outIter = this->Output.begin();
-      while(outIter != this->Output.end())
+      outIter = this->Outputs.begin();
+      while(outIter != this->Outputs.end())
         {
         vtkPolyData* anOutput = *outIter;
         totalNumCells += anOutput->GetNumberOfCells();
@@ -248,12 +273,13 @@ int vtkSMPContourGrid::RequestData(
 {
   // get the input and output
   vtkUnstructuredGrid *input = vtkUnstructuredGrid::GetData(inputVector[0]);
-  vtkPolyData *output = vtkPolyData::GetData(outputVector);
+  vtkMultiBlockDataSet *output = vtkMultiBlockDataSet::GetData(outputVector);
+
+  // Not thread safe so calculate first.
+  input->GetBounds();
 
   vtkPointData* inPd = input->GetPointData();
-  vtkPointData* outPd = output->GetPointData();
   vtkCellData* inCd = input->GetCellData();
-  vtkCellData* outCd = output->GetCellData();
 
   vtkDataArray* inScalars = this->GetInputArrayToProcess(0,inputVector);
 
@@ -261,9 +287,17 @@ int vtkSMPContourGrid::RequestData(
 
   vtkIdType numCells = input->GetNumberOfCells();
 
-  vtkContourGridFunctor functor(this, input, inScalars, values);
+  vtkContourGridFunctor functor(this, input, inScalars, values, output);
   vtkParallelUtilities::ForEach(0, numCells, &functor);
 
+  return 1;
+}
+
+int vtkSMPContourGrid::FillOutputPortInformation(
+  int vtkNotUsed(port), vtkInformation* info)
+{
+  // now add our info
+  info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkMultiBlockDataSet");
   return 1;
 }
 

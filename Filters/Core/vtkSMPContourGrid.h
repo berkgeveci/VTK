@@ -37,6 +37,8 @@ protected:
 
   virtual int RequestData(vtkInformation *, vtkInformationVector **, vtkInformationVector *);
 
+  virtual int FillOutputPortInformation(int port, vtkInformation* info);
+
 private:
   vtkSMPContourGrid(const vtkSMPContourGrid&);  // Not implemented.
   void operator=(const vtkSMPContourGrid&);  // Not implemented.
