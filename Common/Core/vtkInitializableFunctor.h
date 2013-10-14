@@ -47,7 +47,7 @@ public:
   void Execute(vtkIdType begin, vtkIdType end) const;
 
 private:
-  mutable vtkThreadLocal<bool> Initialized;
+  mutable vtkThreadLocal<unsigned char> Initialized;
 
 };
 

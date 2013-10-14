@@ -28,7 +28,7 @@ class vtkThreadLocalObject
 public:
   // Description:
   // Default constructor.
-  vtkThreadLocalObject()
+  vtkThreadLocalObject() : Internal(0)
     {
     }
 

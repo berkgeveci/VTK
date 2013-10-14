@@ -17,6 +17,7 @@
 
 #include "vtkCriticalSection.h"
 #include "vtkFunctor.h"
+#include "vtkInitializableFunctor.h"
 #include "vtkObjectFactory.h"
 
 #include <kaapic.h>
@@ -63,16 +64,22 @@ void vtkParallelUtilities::Initialize(int)
 
 namespace
 {
-template <typename T>
-inline void vtkParallelUtilitiesDoFor(int32_t b, int32_t e, int32_t, const T* o )
+inline void vtkParallelUtilitiesDoFor1(int32_t b, int32_t e, int32_t, const vtkFunctor* o )
 {
   o->Execute(b, e);
 }
 
-template <typename T>
-void vtkParallelUtilitiesForEach(vtkIdType first,
+inline void vtkParallelUtilitiesDoFor2(int32_t b, int32_t e, int32_t, const vtkInitializableFunctor* o )
+{
+  o->Execute(b, e);
+}
+
+}
+
+//--------------------------------------------------------------------------------
+void vtkParallelUtilities::ForEach(vtkIdType first,
                                    vtkIdType last,
-                                   const T* op,
+                                   const vtkFunctor* op,
                                    int grain)
 {
   vtkParallelUtilities::Initialize();
@@ -90,19 +97,9 @@ void vtkParallelUtilitiesForEach(vtkIdType first,
     {
     kaapic_foreach_attr_set_grains(&attr, grain, grain);
     }
-  kaapic_foreach( first, last, &attr, 1, vtkParallelUtilitiesDoFor<T>, op );
+  kaapic_foreach( first, last, &attr, 1, vtkParallelUtilitiesDoFor1, op );
   kaapic_end_parallel(KAAPIC_FLAG_DEFAULT);
   kaapic_foreach_attr_destroy(&attr);
-}
-}
-
-//--------------------------------------------------------------------------------
-void vtkParallelUtilities::ForEach(vtkIdType first,
-                                   vtkIdType last,
-                                   const vtkFunctor* op,
-                                   int grain)
-{
-  vtkParallelUtilitiesForEach(first, last, op, grain);
 }
 
 //--------------------------------------------------------------------------------
@@ -111,7 +108,26 @@ void vtkParallelUtilities::ForEach(vtkIdType first,
                                    vtkInitializableFunctor* op,
                                    int grain)
 {
-  vtkParallelUtilitiesForEach(first, last, op, grain);
+  vtkParallelUtilities::Initialize();
+
+  vtkIdType n = last - first;
+  if (!n)
+    {
+    return;
+    }
+
+  kaapic_begin_parallel(KAAPIC_FLAG_DEFAULT);
+  kaapic_foreach_attr_t attr;
+  kaapic_foreach_attr_init(&attr);
+  if (grain > 0)
+    {
+    kaapic_foreach_attr_set_grains(&attr, grain, grain);
+    }
+  kaapic_foreach( first, last, &attr, 1, vtkParallelUtilitiesDoFor2, op );
+  kaapic_end_parallel(KAAPIC_FLAG_DEFAULT);
+  kaapic_foreach_attr_destroy(&attr);
+
+  op->Finalize();
 }
 
 //--------------------------------------------------------------------------------

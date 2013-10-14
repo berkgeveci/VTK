@@ -33,6 +33,10 @@
 #ifndef __vtkThreadLocal_h
 #define __vtkThreadLocal_h
 
+#include "vtkParallelUtilities.h"
+#include "vtkSystemIncludes.h"
+#include <vector>
+
 #include <kaapic.h>
 
 template <typename T>
@@ -162,6 +166,8 @@ private:
 
   void Initialize()
     {
+      vtkParallelUtilities::Initialize();
+
       this->Internal.resize(this->GetNumberOfThreads());
       this->Initialized.resize(this->GetNumberOfThreads());
       std::fill(this->Initialized.begin(),

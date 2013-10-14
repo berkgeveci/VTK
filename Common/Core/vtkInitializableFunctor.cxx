@@ -16,7 +16,7 @@
 #include "vtkInitializableFunctor.h"
 
 //--------------------------------------------------------------------------------
-vtkInitializableFunctor::vtkInitializableFunctor()
+vtkInitializableFunctor::vtkInitializableFunctor() : Initialized(0)
 {
 }
 
@@ -28,11 +28,11 @@ vtkInitializableFunctor::~vtkInitializableFunctor()
 //--------------------------------------------------------------------------------
 void vtkInitializableFunctor::Execute(vtkIdType begin, vtkIdType end) const
 {
-  bool& inited = this->Initialized.Local();
+  unsigned char& inited = this->Initialized.Local();
   if (!inited)
     {
     this->Initialize();
-    inited = true;
+    inited = 1;
     }
   this->operator()(begin, end);
 }
