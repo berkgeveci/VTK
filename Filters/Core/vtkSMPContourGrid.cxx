@@ -263,6 +263,182 @@ public:
     }
 };
 
+class vtkContourGridFunctor2 : public vtkInitializableFunctor
+{
+  vtkSMPContourGrid* Filter;
+
+  vtkUnstructuredGrid* Input;
+  vtkDataArray* InScalars;
+
+  vtkMultiBlockDataSet* Output;
+
+  double* Values;
+
+  mutable vtkThreadLocal<std::vector<vtkPolyData*> > Outputs;
+
+public:
+
+  vtkContourGridFunctor2(vtkSMPContourGrid* filter,
+                        vtkUnstructuredGrid* input,
+                        vtkDataArray* inScalars,
+                        double* values,
+                        vtkMultiBlockDataSet* output) : Filter(filter),
+                                                        Input(input),
+                                                        InScalars(inScalars),
+                                                        Values(values),
+                                                        Output(output)
+    {
+    }
+
+  ~vtkContourGridFunctor2()
+    {
+    }
+
+  void Initialize() const
+    {
+    }
+
+
+  void operator()(vtkIdType begin, vtkIdType end) const
+    {
+      //cout << begin << " " << end << endl;
+      vtkNew<vtkPolyData> output;
+
+      vtkNew<vtkPoints> newPts;
+
+      // set precision for the points in the output
+      if(this->Filter->GetOutputPointsPrecision() == vtkAlgorithm::DEFAULT_PRECISION)
+        {
+        newPts->SetDataType(this->Input->GetPoints()->GetDataType());
+        }
+      else if(this->Filter->GetOutputPointsPrecision() == vtkAlgorithm::SINGLE_PRECISION)
+        {
+        newPts->SetDataType(VTK_FLOAT);
+        }
+      else if(this->Filter->GetOutputPointsPrecision() == vtkAlgorithm::DOUBLE_PRECISION)
+        {
+        newPts->SetDataType(VTK_DOUBLE);
+        }
+
+      output->SetPoints(newPts.GetPointer());
+
+      vtkIdType numCells = this->Input->GetNumberOfCells();
+
+      vtkIdType estimatedSize=static_cast<vtkIdType>(
+        pow(static_cast<double>(numCells),.75));
+      estimatedSize = estimatedSize / 1024 * 1024; //multiple of 1024
+      if (estimatedSize < 1024)
+        {
+        estimatedSize = 1024;
+        }
+
+      newPts->Allocate(estimatedSize, estimatedSize);
+
+      // vtkNew<vtkNonMergingPointLocator> locator;
+      // locator->SetPoints(newPts.GetPointer());
+
+      vtkNew<vtkPointLocator> locator;
+      locator->InitPointInsertion (newPts.GetPointer(),
+                                   this->Input->GetBounds(),
+                                   this->Input->GetNumberOfPoints());
+
+      vtkNew<vtkCellArray> newVerts;
+      newVerts->Allocate(estimatedSize,estimatedSize);
+
+      vtkNew<vtkCellArray> newLines;
+      newLines->Allocate(estimatedSize,estimatedSize);
+
+      vtkNew<vtkCellArray> newPolys;
+      newPolys->Allocate(estimatedSize,estimatedSize);
+
+      vtkSmartPointer<vtkDataArray> cellScalars;
+      cellScalars.TakeReference(this->InScalars->NewInstance());
+      cellScalars->SetNumberOfComponents(this->InScalars->GetNumberOfComponents());
+      cellScalars->Allocate(VTK_CELL_SIZE*this->InScalars->GetNumberOfComponents());
+
+      vtkPointData* outPd = output->GetPointData();
+      vtkCellData* outCd = output->GetCellData();
+      if (!this->Filter->GetComputeNormals())
+        {
+        outPd->CopyScalarsOff();
+        }
+      vtkPointData* inPd = this->Input->GetPointData();
+      vtkCellData* inCd = this->Input->GetCellData();
+      outPd->InterpolateAllocate(inPd, estimatedSize, estimatedSize);
+      outCd->CopyAllocate(inCd, estimatedSize, estimatedSize);
+
+      vtkNew<vtkGenericCell> cell;
+
+      for (vtkIdType i=begin; i<end; i++)
+        {
+        this->Input->GetCell(i, cell.GetPointer());
+
+        vtkIdList* cellPts = cell->GetPointIds();
+        this->InScalars->GetTuples(cellPts, cellScalars.GetPointer());
+
+        cell->Contour(Values[0],
+                      cellScalars.GetPointer(),
+                      locator.GetPointer(),
+                      newVerts.GetPointer(),
+                      newLines.GetPointer(),
+                      newPolys.GetPointer(),
+                      inPd,
+                      outPd,
+                      inCd,
+                      i,
+                      outCd);
+        }
+
+      if (newVerts->GetNumberOfCells())
+        {
+        output->SetVerts(newVerts.GetPointer());
+        }
+
+      if (newLines->GetNumberOfCells())
+        {
+        output->SetLines(newLines.GetPointer());
+        }
+
+      if (newPolys->GetNumberOfCells())
+        {
+        output->SetPolys(newPolys.GetPointer());
+        }
+
+        output->Squeeze();
+
+      output->Register(0);
+      this->Outputs.Local().push_back(output.GetPointer());
+    }
+
+  void Finalize()
+    {
+      vtkNew<vtkMultiPieceDataSet> mp;
+      int count = 0, count2 = 0;
+      vtkIdType totalNumCells = 0;
+
+      vtkThreadLocal<std::vector<vtkPolyData*> >::iterator outIter =
+        this->Outputs.begin();
+      while(outIter != this->Outputs.end())
+        {
+        std::vector<vtkPolyData*>& outs = *outIter;
+        std::vector<vtkPolyData*>::iterator iter = outs.begin();
+        while (iter != outs.end())
+          {
+          //cout << count << " : " << (*iter)->GetNumberOfCells() << endl;
+          mp->SetPiece(count++, *iter);
+          totalNumCells += (*iter)->GetNumberOfCells();
+          (*iter)->Delete();
+          iter++;
+          }
+        ++outIter;
+        }
+
+      this->Output->SetBlock(0, mp.GetPointer());
+
+      cout << "Total number of cells: " << totalNumCells << endl;
+    }
+};
+
 //
 // Contouring filter for unstructured grids.
 //
@@ -287,8 +463,8 @@ int vtkSMPContourGrid::RequestData(
 
   vtkIdType numCells = input->GetNumberOfCells();
 
-  vtkContourGridFunctor functor(this, input, inScalars, values, output);
-  vtkParallelUtilities::ForEach(0, numCells, &functor);
+  vtkContourGridFunctor2 functor(this, input, inScalars, values, output);
+  vtkParallelUtilities::ForEach(0, numCells, &functor, 500000);
 
   return 1;
 }
