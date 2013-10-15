@@ -25,7 +25,7 @@
 #include "vtkPolyData.h"
 #include "vtkSmartPointer.h"
 #include "vtkUnstructuredGrid.h"
-#include "vtkPointLocator.h"
+#include "vtkMergePoints.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
 #include "vtkParallelUtilities.h"
@@ -67,8 +67,8 @@ class vtkContourGridFunctor : public vtkInitializableFunctor
   mutable vtkThreadLocalObject<vtkCellArray> NewLines;
   mutable vtkThreadLocalObject<vtkCellArray> NewPolys;
   mutable vtkThreadLocalObject<vtkPolyData> Outputs;
-  mutable vtkThreadLocalObject<vtkNonMergingPointLocator> Locator;
-  //mutable vtkThreadLocalObject<vtkPointLocator> Locator;
+  //mutable vtkThreadLocalObject<vtkNonMergingPointLocator> Locator;
+  mutable vtkThreadLocalObject<vtkMergePoints> Locator;
 
 public:
 
@@ -129,13 +129,13 @@ public:
 
       newPts->Allocate(estimatedSize, estimatedSize);
 
-      vtkNonMergingPointLocator*& locator = this->Locator.Local();
-      locator->SetPoints(newPts);
+      // vtkNonMergingPointLocator*& locator = this->Locator.Local();
+      // locator->SetPoints(newPts);
 
-      // vtkPointLocator*& locator = this->Locator.Local();
-      // locator->InitPointInsertion (newPts,
-      //                              this->Input->GetBounds(),
-      //                              this->Input->GetNumberOfPoints());
+      vtkMergePoints*& locator = this->Locator.Local();
+      locator->InitPointInsertion (newPts,
+                                   this->Input->GetBounds(),
+                                   this->Input->GetNumberOfPoints());
 
       vtkCellArray*& newVerts = this->NewVerts.Local();
       newVerts->Allocate(estimatedSize,estimatedSize);
@@ -166,6 +166,8 @@ public:
 
   void operator()(vtkIdType begin, vtkIdType end) const
     {
+      //cout << begin << " " << end << endl;
+
       vtkGenericCell* cell = this->Cell.Local();
       vtkDataArray* cs = this->CellScalars.Local();
       vtkPointData* inPd = this->Input->GetPointData();
@@ -179,8 +181,8 @@ public:
       vtkCellArray* lines = this->NewLines.Local();
       vtkCellArray* polys = this->NewPolys.Local();
 
-      vtkNonMergingPointLocator* loc = this->Locator.Local();
-      //vtkPointLocator* loc = this->Locator.Local();
+      //vtkNonMergingPointLocator* loc = this->Locator.Local();
+      vtkMergePoints* loc = this->Locator.Local();
 
       for (vtkIdType i=begin; i<end; i++)
         {
@@ -337,10 +339,15 @@ public:
       // vtkNew<vtkNonMergingPointLocator> locator;
       // locator->SetPoints(newPts.GetPointer());
 
-      vtkNew<vtkPointLocator> locator;
+      vtkNew<vtkMergePoints> locator;
       locator->InitPointInsertion (newPts.GetPointer(),
                                    this->Input->GetBounds(),
                                    this->Input->GetNumberOfPoints());
+
+      // vtkNew<vtkPointLocator> locator;
+      // locator->InitPointInsertion (newPts.GetPointer(),
+      //                              this->Input->GetBounds(),
+      //                              this->Input->GetNumberOfPoints());
 
       vtkNew<vtkCellArray> newVerts;
       newVerts->Allocate(estimatedSize,estimatedSize);
@@ -463,8 +470,14 @@ int vtkSMPContourGrid::RequestData(
 
   vtkIdType numCells = input->GetNumberOfCells();
 
+  //vtkContourGridFunctor functor(this, input, inScalars, values, output);
   vtkContourGridFunctor2 functor(this, input, inScalars, values, output);
-  vtkParallelUtilities::ForEach(0, numCells, &functor, 500000);
+  // When using vtkContourGridFunctor2, it is crucial to set the grain
+  // right. When the grain is too small, which tends to be the default,
+  // the overhead of allocating data structures, building locators etc.
+  // ends up being too big. When using vtkContourGridFunctor, it doesn't
+  // matter as much.
+  vtkParallelUtilities::ForEach(0, numCells, &functor, 50000);
 
   return 1;
 }
