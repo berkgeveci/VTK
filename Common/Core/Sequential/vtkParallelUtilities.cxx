@@ -38,11 +38,11 @@ void vtkParallelUtilities::Initialize(int)
 {
 }
 
-//--------------------------------------------------------------------------------
-void vtkParallelUtilities::ForEach(vtkIdType first,
-                                   vtkIdType last,
-                                   const vtkFunctor* op,
-                                   int)
+template <typename T>
+void vtkParallelUtilitiesForEach(vtkIdType first,
+                                 vtkIdType last,
+                                 const T* op,
+                                 int grain)
 {
   vtkIdType n = last - first;
   if (!n)
@@ -50,22 +50,42 @@ void vtkParallelUtilities::ForEach(vtkIdType first,
     return;
     }
 
-  op->Execute(first, last);
+  if (grain == 0 || grain >= n)
+    {
+    op->Execute(first, last);
+    }
+  else
+    {
+    vtkIdType b = first;
+    while (b < last)
+      {
+      vtkIdType e = b + grain;
+      if (e > last)
+        {
+        e = last;
+        }
+      op->Execute(b, e);
+      b = e;
+      }
+    }
+}
+
+//--------------------------------------------------------------------------------
+void vtkParallelUtilities::ForEach(vtkIdType first,
+                                   vtkIdType last,
+                                   const vtkFunctor* op,
+                                   int grain)
+{
+  vtkParallelUtilitiesForEach(first, last, op, grain);
 }
 
 //--------------------------------------------------------------------------------
 void vtkParallelUtilities::ForEach(vtkIdType first,
                                    vtkIdType last,
                                    vtkInitializableFunctor* op,
-                                   int)
+                                   int grain)
 {
-  vtkIdType n = last - first;
-  if (!n)
-    {
-    return;
-    }
-
-  op->Execute(first, last);
+  vtkParallelUtilitiesForEach(first, last, op, grain);
   op->Finalize();
 }
 
