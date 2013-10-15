@@ -90,13 +90,12 @@ void vtkParallelUtilities::ForEach(vtkIdType first,
     return;
     }
 
+  vtkIdType g = grain ? grain : sqrt(n);
+
   kaapic_begin_parallel(KAAPIC_FLAG_DEFAULT);
   kaapic_foreach_attr_t attr;
   kaapic_foreach_attr_init(&attr);
-  if (grain > 0)
-    {
-    kaapic_foreach_attr_set_grains(&attr, grain, grain);
-    }
+  kaapic_foreach_attr_set_grains(&attr, g, g);
   kaapic_foreach( first, last, &attr, 1, vtkParallelUtilitiesDoFor1, op );
   kaapic_end_parallel(KAAPIC_FLAG_DEFAULT);
   kaapic_foreach_attr_destroy(&attr);
@@ -116,13 +115,12 @@ void vtkParallelUtilities::ForEach(vtkIdType first,
     return;
     }
 
+  vtkIdType g = grain ? grain : sqrt(n);
+
   kaapic_begin_parallel(KAAPIC_FLAG_DEFAULT);
   kaapic_foreach_attr_t attr;
   kaapic_foreach_attr_init(&attr);
-  if (grain > 0)
-    {
-    kaapic_foreach_attr_set_grains(&attr, grain, grain);
-    }
+  kaapic_foreach_attr_set_grains(&attr, g, g);
   kaapic_foreach( first, last, &attr, 1, vtkParallelUtilitiesDoFor2, op );
   kaapic_end_parallel(KAAPIC_FLAG_DEFAULT);
   kaapic_foreach_attr_destroy(&attr);
