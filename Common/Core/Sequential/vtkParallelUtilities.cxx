@@ -16,6 +16,7 @@
 #include "vtkParallelUtilities.h"
 
 #include "vtkFunctor.h"
+#include "vtkInitializableFunctor.h"
 #include "vtkObjectFactory.h"
 
 vtkStandardNewMacro(vtkParallelUtilities);
@@ -49,7 +50,23 @@ void vtkParallelUtilities::ForEach(vtkIdType first,
     return;
     }
 
-  (*op)(first, last);
+  op->Execute(first, last);
+}
+
+//--------------------------------------------------------------------------------
+void vtkParallelUtilities::ForEach(vtkIdType first,
+                                   vtkIdType last,
+                                   vtkInitializableFunctor* op,
+                                   int)
+{
+  vtkIdType n = last - first;
+  if (!n)
+    {
+    return;
+    }
+
+  op->Execute(first, last);
+  op->Finalize();
 }
 
 //--------------------------------------------------------------------------------

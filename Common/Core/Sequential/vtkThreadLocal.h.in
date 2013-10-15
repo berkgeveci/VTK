@@ -31,10 +31,13 @@
 // using the iterators to do the final accumulation.
 //
 // Note that this particular implementation is designed to work in sequential
-// mode and support only 1 thread.
+// mode and supports only 1 thread.
 
 #ifndef __vtkThreadLocal_h
 #define __vtkThreadLocal_h
+
+#include "vtkSystemIncludes.h"
+#include <vector>
 
 template <typename T>
 class vtkThreadLocal
