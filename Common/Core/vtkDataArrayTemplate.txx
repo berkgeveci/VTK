@@ -35,6 +35,8 @@
 #include <algorithm>
 #include <map>
 
+#include <tbb/scalable_allocator.h>
+
 // We do not provide a definition for the copy constructor or
 // operator=.  Block the warning.
 #ifdef _MSC_VER
@@ -91,7 +93,7 @@ vtkDataArrayTemplate<T>::~vtkDataArrayTemplate()
   this->DeleteArray();
   if(this->Tuple)
     {
-    free(this->Tuple);
+    scalable_free(this->Tuple);
     }
   if(this->Lookup)
     {
@@ -138,23 +140,23 @@ int vtkDataArrayTemplate<T>::Allocate(vtkIdType sz, vtkIdType)
     this->Size = 0;
 
     vtkIdType newSize = (sz > 0 ? sz : 1);
-    this->Array = static_cast<T*>(malloc(static_cast<size_t>(newSize)
+    this->Array = static_cast<T*>(scalable_malloc(static_cast<size_t>(newSize)
                                          * sizeof(T)));
     if(this->Array==0)
       {
       vtkErrorMacro("Unable to allocate " << newSize
                     << " elements of size " << sizeof(T)
                     << " bytes. ");
-      #if !defined NDEBUG
+#if !defined NDEBUG
       // We're debugging, crash here preserving the stack
       abort();
-      #elif !defined VTK_DONT_THROW_BAD_ALLOC
+#elif !defined VTK_DONT_THROW_BAD_ALLOC
       // We can throw something that has universal meaning
       throw std::bad_alloc();
-      #else
+#else
       // We indicate that malloc failed by return
       return 0;
-      #endif
+#endif
       }
     this->Size = newSize;
     }
@@ -215,7 +217,7 @@ void vtkDataArrayTemplate<T>::DeleteArray()
     {
     if (this->DeleteMethod == VTK_DATA_ARRAY_FREE)
       {
-      free(this->Array);
+      scalable_free(this->Array);
       }
     else
       {
@@ -265,9 +267,9 @@ T* vtkDataArrayTemplate<T>::ResizeAndExtend(vtkIdType sz)
   // is a very serious problem and causes huge amount of memory to be
   // wasted. Do not use realloc on the Mac.
   bool dontUseRealloc=false;
-  #if defined __APPLE__
+#if defined __APPLE__
   dontUseRealloc=true;
-  #endif
+#endif
 
   // Allocate the new array or reallocate the old.
   if (this->Array
@@ -276,22 +278,22 @@ T* vtkDataArrayTemplate<T>::ResizeAndExtend(vtkIdType sz)
        || this->DeleteMethod==VTK_DATA_ARRAY_DELETE
        || dontUseRealloc ))
     {
-    newArray = static_cast<T*>(malloc(static_cast<size_t>(newSize)*sizeof(T)));
+    newArray = static_cast<T*>(scalable_malloc(static_cast<size_t>(newSize)*sizeof(T)));
     if(!newArray)
       {
       vtkErrorMacro("Unable to allocate " << newSize
                     << " elements of size " << sizeof(T)
                     << " bytes. ");
-      #if !defined NDEBUG
+#if !defined NDEBUG
       // We're debugging, crash here preserving the stack
       abort();
-      #elif !defined VTK_DONT_THROW_BAD_ALLOC
+#elif !defined VTK_DONT_THROW_BAD_ALLOC
       // We can throw something that has universal meaning
       throw std::bad_alloc();
-      #else
+#else
       // We indicate that malloc failed by return
       return 0;
-      #endif
+#endif
       }
     // Copy the data from the old array.
     memcpy(newArray, this->Array,
@@ -306,22 +308,22 @@ T* vtkDataArrayTemplate<T>::ResizeAndExtend(vtkIdType sz)
     // Try to reallocate with minimal memory usage and possibly avoid
     // copying.
     newArray = static_cast<T*>(
-      realloc(this->Array,static_cast<size_t>(newSize)*sizeof(T)));
+      scalable_realloc(this->Array,static_cast<size_t>(newSize)*sizeof(T)));
     if(!newArray)
       {
       vtkErrorMacro("Unable to allocate " << newSize
                     << " elements of size " << sizeof(T)
                     << " bytes. ");
-      #if !defined NDEBUG
+#if !defined NDEBUG
       // We're debugging, crash here preserving the stack
       abort();
-      #elif !defined VTK_DONT_THROW_BAD_ALLOC
+#elif !defined VTK_DONT_THROW_BAD_ALLOC
       // We can throw something that has universal meaning
       throw std::bad_alloc();
-      #else
+#else
       // We indicate that malloc failed by return
       return 0;
-      #endif
+#endif
       }
     }
 
@@ -585,9 +587,9 @@ double* vtkDataArrayTemplate<T>::GetTuple(vtkIdType i)
   if(this->TupleSize < this->NumberOfComponents)
     {
     this->TupleSize = this->NumberOfComponents;
-    free(this->Tuple);
+    scalable_free(this->Tuple);
     size_t s=static_cast<size_t>(this->TupleSize);
-    this->Tuple = static_cast<double *>(malloc(s*sizeof(double)));
+    this->Tuple = static_cast<double *>(scalable_malloc(s*sizeof(double)));
     }
 
   // Make sure tuple allocation succeeded.
@@ -596,16 +598,16 @@ double* vtkDataArrayTemplate<T>::GetTuple(vtkIdType i)
     vtkErrorMacro("Unable to allocate " << this->TupleSize
                   << " elements of size " << sizeof(double)
                   << " bytes. ");
-    #if !defined NDEBUG
+#if !defined NDEBUG
     // We're debugging, crash here preserving the stack
     abort();
-    #elif !defined VTK_DONT_THROW_BAD_ALLOC
+#elif !defined VTK_DONT_THROW_BAD_ALLOC
     // We can throw something that has universal meaning
     throw std::bad_alloc();
-    #else
+#else
     // We indicate that malloc failed by return
     return 0;
-    #endif
+#endif
     }
 
   // Copy the data into the tuple.
@@ -621,22 +623,22 @@ double* vtkDataArrayTemplate<T>::GetTuple(vtkIdType i)
   // allocating a new tuple and freeing the old one code that keeps
   // the pointer will do invalid reads or writes.
   double* newTuple;
-  newTuple = (double*)malloc(this->NumberOfComponents * sizeof(double));
+  newTuple = (double*)scalable_malloc(this->NumberOfComponents * sizeof(double));
   if(!newTuple)
     {
     vtkErrorMacro("Unable to allocate " << this->NumberOfComponents
                   << " elements of size " << sizeof(double)
                   << " bytes. ");
-    #if !defined NDEBUG
+#if !defined NDEBUG
     // We're debugging, crash here preserving the stack
     abort();
-    #elif !defined VTK_DONT_THROW_BAD_ALLOC
+#elif !defined VTK_DONT_THROW_BAD_ALLOC
     // We can throw something that has universal meaning
     throw std::bad_alloc();
-    #else
+#else
     // We indicate that malloc failed by return
     return 0;
-    #endif
+#endif
     }
 
   // Copy the data into the new tuple.
@@ -647,7 +649,7 @@ double* vtkDataArrayTemplate<T>::GetTuple(vtkIdType i)
     }
 
   // Replace the old tuple with the new one.
-  free(this->Tuple);
+  scalable_free(this->Tuple);
   this->Tuple = newTuple;
   return this->Tuple;
 #endif

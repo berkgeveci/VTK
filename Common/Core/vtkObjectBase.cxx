@@ -20,6 +20,8 @@
 
 #include <vtksys/ios/sstream>
 
+#include <tbb/scalable_allocator.h>
+
 #define vtkBaseDebugMacro(x)
 
 class vtkObjectBaseToGarbageCollectorFriendship
@@ -45,18 +47,18 @@ public:
 };
 
 // avoid dll boundary problems
-#ifdef _WIN32
+//#ifdef _WIN32
 void* vtkObjectBase::operator new(size_t nSize)
 {
-  void* p=malloc(nSize);
+  void* p=scalable_malloc(nSize);
   return p;
 }
 
 void vtkObjectBase::operator delete( void *p )
 {
-  free(p);
+  scalable_free(p);
 }
-#endif
+//#endif
 
 // ------------------------------------vtkObjectBase----------------------
 // This operator allows all subclasses of vtkObjectBase to be printed via <<.

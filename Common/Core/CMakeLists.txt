@@ -593,4 +593,4 @@ endif()
 
 vtk_module_library(vtkCommonCore ${Module_SRCS})
 
-target_link_libraries(vtkCommonCore LINK_PRIVATE ${CMAKE_THREAD_LIBS_INIT} LINK_PUBLIC ${VTK_SMP_IMPLEMENTATION_LIBRARIES})
+target_link_libraries(vtkCommonCore LINK_PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${TBB_MALLOC_LIBRARY} LINK_PUBLIC ${VTK_SMP_IMPLEMENTATION_LIBRARIES})
