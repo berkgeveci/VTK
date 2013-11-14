@@ -17,16 +17,27 @@
 #include "vtkObjectFactory.h"
 #include "vtkWindows.h"
 
-// We use the Schwarz Counter idiom to make sure that GlobalTimeStamp
-// is initialized before any other class uses it.
-
 #include "vtkAtomicInt.h"
+
+static bool vtkTimeStampTimeFrozen = false;
 
 //-------------------------------------------------------------------------
 vtkTimeStamp* vtkTimeStamp::New()
 {
   // If the factory was unable to create the object, then create it here.
   return new vtkTimeStamp;
+}
+
+//-------------------------------------------------------------------------
+void vtkTimeStamp::FreezeTime()
+{
+  vtkTimeStampTimeFrozen = true;
+}
+
+//-------------------------------------------------------------------------
+void vtkTimeStamp::UnfreezeTime()
+{
+  vtkTimeStampTimeFrozen = false;
 }
 
 //-------------------------------------------------------------------------
@@ -38,5 +49,8 @@ void vtkTimeStamp::Modified()
   static vtkAtomicInt<vtkTypeInt32> GlobalTimeStamp(0);
 #endif
 
-  this->ModifiedTime = (unsigned long)++GlobalTimeStamp;
+  if (!vtkTimeStampTimeFrozen)
+    {
+    this->ModifiedTime = (unsigned long)++GlobalTimeStamp;
+    }
 }

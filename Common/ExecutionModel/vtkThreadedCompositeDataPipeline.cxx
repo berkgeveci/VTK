@@ -35,7 +35,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkObjectFactory.h"
 #include "vtkDebugLeaks.h"
-#include "vtkImageData.h"
+#include "vtkTimeStamp.h"
 
 #include "vtkSMPThreadLocal.h"
 #include "vtkSMPThreadLocalObject.h"
@@ -280,7 +280,9 @@ void vtkThreadedCompositeDataPipeline::ExecuteEach(vtkCompositeDataIterator* ite
   vtkSmartPointer<vtkProgressObserver> origPo(this->Algorithm->GetProgressObserver());
   vtkNew<vtkSMPProgressObserver> po;
   this->Algorithm->SetProgressObserver(po.GetPointer());
+  vtkTimeStamp::FreezeTime();
   vtkSMPTools::For(0, inObjs.size(), processBlock);
+  vtkTimeStamp::UnfreezeTime();
   this->Algorithm->SetProgressObserver(origPo);
 
   int i =0;

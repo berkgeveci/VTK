@@ -59,8 +59,20 @@ public:
   // Allow for typecasting to unsigned long.
   operator unsigned long() const {return this->ModifiedTime;};
 
+  // Description:
+  // Temporarily freezes updating global time. Modified() will
+  // not update while time is "frozen" and will always return
+  // the value right before FreezeTime() was called.
+  static void FreezeTime();
+
+  // Description:
+  // Restores proper updating of global time after FreezeTime()
+  // was called.
+  static void UnfreezeTime();
+
 private:
   unsigned long ModifiedTime;
+  bool TimeFrozen;
 };
 
 #endif
