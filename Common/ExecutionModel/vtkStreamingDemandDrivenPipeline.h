@@ -234,7 +234,7 @@ public:
 
   // Description:
   // Whether there are time dependent meta information
-  // if there is, the pipe will perform two extra passes
+  // if there is, the pipeline will perform two extra passes
   // to gather the time dependent information
   static vtkInformationIntegerKey* TIME_DEPENDENT_INFORMATION();
 

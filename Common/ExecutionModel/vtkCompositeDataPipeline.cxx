@@ -555,24 +555,30 @@ int vtkCompositeDataPipeline::NeedToExecuteData(
                                                inInfoVec,outInfoVec);
     }
 
-  // Does the superclass want to execute?
-  if(this->vtkDemandDrivenPipeline::NeedToExecuteData(
-       outputPort,inInfoVec,outInfoVec))
-    {
-    return 1;
-    }
-
   // We need to check the requested update extent.  Get the output
   // port information and data information.  We do not need to check
   // existence of values because it has already been verified by
   // VerifyOutputInformation.
   vtkInformation* outInfo = outInfoVec->GetInformationObject(outputPort);
   vtkDataObject* dataObject = outInfo->Get(vtkDataObject::DATA_OBJECT());
+
+  // If the output is not a composite dataset, let the superclass handle
+  // NeedToExecuteData
   if (!vtkCompositeDataSet::SafeDownCast(dataObject))
     {
     return this->Superclass::NeedToExecuteData(outputPort,
                                                inInfoVec,outInfoVec);
     }
+
+  // First do the basic checks.
+  if(this->vtkDemandDrivenPipeline::NeedToExecuteData(
+       outputPort,inInfoVec,outInfoVec))
+    {
+    return 1;
+    }
+
+  // Now handle composite stuff.
+
   vtkInformation* dataInfo = dataObject->GetInformation();
 
   // Check the unstructured extent.  If we do not have the requested
