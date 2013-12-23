@@ -41,6 +41,8 @@ vtkTrivialProducer::vtkTrivialProducer()
   this->SetNumberOfInputPorts(0);
   this->SetNumberOfOutputPorts(1);
   this->Output = 0;
+  this->WholeExtent[0] = this->WholeExtent[2] = this->WholeExtent[4] =  0;
+  this->WholeExtent[1] = this->WholeExtent[3] = this->WholeExtent[5] = -1;
 }
 
 //----------------------------------------------------------------------------
@@ -120,20 +122,28 @@ vtkTrivialProducer::ProcessRequest(vtkInformation* request,
     {
     vtkInformation* outputInfo = outputVector->GetInformationObject(0);
     vtkInformation* dataInfo = this->Output->GetInformation();
+    /*
     if(dataInfo->Get(vtkDataObject::DATA_EXTENT_TYPE()) == VTK_PIECES_EXTENT)
       {
-      // There is no real source to  change the output data, so we can
-      // produce exactly one piece.
       outputInfo->Set(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(), -1);
       }
-    else if(dataInfo->Get(vtkDataObject::DATA_EXTENT_TYPE()) == VTK_3D_EXTENT)
+    else */
+    if(dataInfo->Get(vtkDataObject::DATA_EXTENT_TYPE()) == VTK_3D_EXTENT)
       {
-      // The whole extent is just the extent because the output has no
-      // real source to change its data.
-      int extent[6];
-      dataInfo->Get(vtkDataObject::DATA_EXTENT(), extent);
-      outputInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(),
-                      extent, 6);
+      if (this->WholeExtent[0] <= this->WholeExtent[1] &&
+          this->WholeExtent[2] <= this->WholeExtent[3] &&
+          this->WholeExtent[4] <= this->WholeExtent[5])
+        {
+        outputInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(),
+                        this->WholeExtent, 6);
+        }
+      else
+        {
+        int extent[6];
+        dataInfo->Get(vtkDataObject::DATA_EXTENT(), extent);
+        outputInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(),
+                        extent, 6);
+        }
       }
 
     if (this->Output->IsA("vtkImageData"))
@@ -249,24 +259,21 @@ vtkTrivialProducer::ProcessRequest(vtkInformation* request,
         {
         // If EXACT_EXTENT() is not there,
         // make sure that we provide requested extent or more
-        int dataExt[6];
         vtkDataObject* output = outputInfo->Get(vtkDataObject::DATA_OBJECT());
-        output->GetInformation()->Get(vtkDataObject::DATA_EXTENT(), dataExt);
-        if (updateExt[0] < dataExt[0] ||
-            updateExt[1] > dataExt[1] ||
-            updateExt[2] < dataExt[2] ||
-            updateExt[3] > dataExt[3] ||
-            updateExt[4] < dataExt[4] ||
-            updateExt[5] > dataExt[5])
+        if (updateExt[0] < wholeExt[0] ||
+            updateExt[1] > wholeExt[1] ||
+            updateExt[2] < wholeExt[2] ||
+            updateExt[3] > wholeExt[3] ||
+            updateExt[4] < wholeExt[4] ||
+            updateExt[5] > wholeExt[5])
           {
-          if (output != this->Output)
-            {
-            outputInfo->Set(vtkDataObject::DATA_OBJECT(), this->Output);
-            }
-          else
-            {
-            vtkErrorMacro("This data object does not contain the requested extent.");
-            }
+          vtkErrorMacro("This data object does not contain the requested extent.");
+          }
+        // This means that we used a previously cropped output, replace it
+        // with current
+        else if (output != this->Output)
+          {
+          outputInfo->Set(vtkDataObject::DATA_OBJECT(), this->Output);
           }
         }
       }

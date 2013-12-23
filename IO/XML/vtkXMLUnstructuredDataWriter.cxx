@@ -127,12 +127,14 @@ int vtkXMLUnstructuredDataWriter::ProcessRequest(vtkInformation* request,
     // than 1, any number of pieces can be produced by the pipeline.
     vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
     int numPieces = this->NumberOfPieces;
+    /*
     int maxPieces =
       inInfo->Get(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES());
     if((maxPieces > 0) && (this->NumberOfPieces > maxPieces))
       {
       this->NumberOfPieces = maxPieces;
       }
+    */
 
     if (this->WritePiece >= 0)
       {
