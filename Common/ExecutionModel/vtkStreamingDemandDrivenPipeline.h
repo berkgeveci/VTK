@@ -29,7 +29,6 @@
 #define VTK_UPDATE_EXTENT_COMBINE 1
 #define VTK_UPDATE_EXTENT_REPLACE 2
 
-class vtkExtentTranslator;
 class vtkInformationDoubleKey;
 class vtkInformationDoubleVectorKey;
 class vtkInformationIdTypeKey;
@@ -140,14 +139,6 @@ public:
   int GetRequestExactExtent(int port);
 
   // Description:
-  // Get/Set the object that will translate pieces into structured
-  // extents for an output port.
-  int SetExtentTranslator(int port, vtkExtentTranslator* translator);
-  static int SetExtentTranslator(vtkInformation *, vtkExtentTranslator* translator);
-  vtkExtentTranslator* GetExtentTranslator(int port);
-  static vtkExtentTranslator* GetExtentTranslator(vtkInformation *info);
-
-  // Description:
   // Set/Get the whole bounding box of an output port data object.
   // The whole whole bounding box is meta data for data sets.  It gets
   // set by the algorithm during the update information pass.
@@ -171,10 +162,6 @@ public:
   static vtkInformationIntegerKey* CONTINUE_EXECUTING();
 
   // Description:
-  // Key to store an extent translator in pipeline information.
-  static vtkInformationObjectBaseKey* EXTENT_TRANSLATOR();
-
-  // Description:
   // Keys to store an update request in pipeline information.
   static vtkInformationIntegerKey* UPDATE_EXTENT_INITIALIZED();
   static vtkInformationIntegerVectorKey* UPDATE_EXTENT();
@@ -183,14 +170,21 @@ public:
   static vtkInformationIntegerKey* UPDATE_NUMBER_OF_GHOST_LEVELS();
 
   // Description:
+  // Key that tells the pipeline that a particular algorithm
+  // can or cannot handle piece request. If a filter cannot handle
+  // piece requests and is asked for a piece, the executive will
+  // flag an error. If a structured data source cannot handle piece
+  // requests but can produce sub-extents (CAN_PRODUCE_SUB_EXTENT),
+  // the executive will use an extent translator to split the extent
+  // into pieces. Otherwise, if a source cannot handle piece requests,
+  // the executive will ask for the whole data for piece 0 and not
+  // execute the source for other pieces.
+  static vtkInformationIntegerKey* CAN_HANDLE_PIECE_REQUEST();
+
+  // Description:
   // Key for combining the update extents requested by all consumers,
   // so that the final extent that is produced satisfies all consumers.
   static vtkInformationIntegerVectorKey* COMBINED_UPDATE_EXTENT();
-
-  // Description:
-  // This is set if the extent was set through extent translation.
-  // GenerateGhostLevelArray() is called only when this is set.
-  static vtkInformationIntegerKey* UPDATE_EXTENT_TRANSLATED();
 
   // Description:
   // Key to store the whole extent provided in pipeline information.
