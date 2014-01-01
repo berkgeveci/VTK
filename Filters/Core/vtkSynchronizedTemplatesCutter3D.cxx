@@ -577,9 +577,6 @@ int vtkSynchronizedTemplatesCutter3D::RequestData(
   vtkPolyData *output = vtkPolyData::SafeDownCast(
     outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-  // to be safe recompute the
-  this->RequestUpdateExtent(request,inputVector,outputVector);
-
   // Just call the threaded execute directly.
   this->ThreadedExecute(input, outInfo, 0);
 

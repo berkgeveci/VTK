@@ -52,6 +52,15 @@ public:
   // The modified time of this producer is the newer of this object or
   // the assigned output.
   virtual unsigned long GetMTime();
+
+  // Description:
+  // Set the whole extent to use for the data this producer is producing.
+  // This may be different than the extent of the output data when
+  // the trivial producer is used in parallel.
+  vtkSetVector6Macro(WholeExtent, int);
+  vtkGetVector6Macro(WholeExtent, int);
+
+
 protected:
   vtkTrivialProducer();
   ~vtkTrivialProducer();
@@ -62,6 +71,8 @@ protected:
 
   // The real data object.
   vtkDataObject* Output;
+
+  int WholeExtent[6];
 
   virtual void ReportReferences(vtkGarbageCollector*);
 private:

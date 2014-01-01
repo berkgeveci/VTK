@@ -373,7 +373,7 @@ void vtkCompositeDataPipeline::ExecuteSimpleAlgorithm(
     r->Set(vtkExecutive::ALGORITHM_AFTER_FORWARD(), 1);
 
 
-    // Store the information (whole_extent and maximum_number_of_pieces)
+    // Store the information (whole_extent)
     // before looping. Otherwise, executeinformation will cause
     // changes (because we pretend that the max. number of pieces is
     // one to process the whole block)
@@ -395,9 +395,7 @@ void vtkCompositeDataPipeline::ExecuteSimpleAlgorithm(
     // ExecuteDataStart() should NOT Initialize() the composite output.
     this->InLocalLoop = 0;
     // Restore the extent information and force it to be
-    // copied to the output. Composite sources should set
-    // MAXIMUM_NUMBER_OF_PIECES to -1 anyway (and handle
-    // piece requests properly).
+    // copied to the output.
     this->PopInformation(inInfo);
     r->Set(REQUEST_INFORMATION());
     this->CopyDefaultInformation(r, vtkExecutive::RequestDownstream,
@@ -904,10 +902,6 @@ void vtkCompositeDataPipeline::CopyFromDataToInformation(
     inInfo->Set(
       WHOLE_EXTENT(), static_cast<vtkUniformGrid*>(dobj)->GetExtent(), 6);
     }
-  else
-    {
-    inInfo->Set(MAXIMUM_NUMBER_OF_PIECES(), 1);
-    }
 }
 
 //----------------------------------------------------------------------------
@@ -915,7 +909,6 @@ void vtkCompositeDataPipeline::PushInformation(vtkInformation* inInfo)
 {
   vtkDebugMacro(<< "PushInformation " << inInfo);
   this->InformationCache->CopyEntry(inInfo, WHOLE_EXTENT());
-  this->InformationCache->CopyEntry(inInfo, MAXIMUM_NUMBER_OF_PIECES());
 }
 
 //----------------------------------------------------------------------------
@@ -923,7 +916,6 @@ void vtkCompositeDataPipeline::PopInformation(vtkInformation* inInfo)
 {
   vtkDebugMacro(<< "PopInformation " << inInfo);
   inInfo->CopyEntry(this->InformationCache, WHOLE_EXTENT());
-  inInfo->CopyEntry(this->InformationCache, MAXIMUM_NUMBER_OF_PIECES());
 }
 
 //----------------------------------------------------------------------------

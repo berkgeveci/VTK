@@ -72,18 +72,6 @@ public:
   int PropagateTime(int outputPort);
   int UpdateTimeDependentInformation(int outputPort);
 
-
-  // Description:
-  // Set/Get the maximum number of pieces that can be requested from
-  // the given port.  The maximum number of pieces is meta data for
-  // unstructured data sets.  It gets set by the source during the
-  // update information call.  A value of -1 indicates that there is
-  // no maximum.
-  int SetMaximumNumberOfPieces(int port, int n);
-  static int SetMaximumNumberOfPieces(vtkInformation *, int n);
-  int GetMaximumNumberOfPieces(int port);
-  static int GetMaximumNumberOfPieces(vtkInformation *);
-
   // Description:
   // Set/Get the whole extent of an output port.  The whole extent is
   // meta data for structured data sets.  It gets set by the algorithm
@@ -195,11 +183,6 @@ public:
   // whole extent, for sources that can generate an extent of
   // any requested size.
   static vtkInformationIntegerKey* UNRESTRICTED_UPDATE_EXTENT();
-
-  // Description:
-  // Key to store the maximum number of pieces provided in pipeline
-  // information.
-  static vtkInformationIntegerKey* MAXIMUM_NUMBER_OF_PIECES();
 
   // Description:
   // Key to store the bounding box of the entire data set in pipeline

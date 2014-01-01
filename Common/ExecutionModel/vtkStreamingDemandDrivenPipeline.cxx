@@ -43,7 +43,6 @@ vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, EXACT_EXTENT, Integer);
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, REQUEST_UPDATE_EXTENT, Request);
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, REQUEST_UPDATE_TIME, Request);
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, REQUEST_TIME_DEPENDENT_INFORMATION, Request);
-vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, MAXIMUM_NUMBER_OF_PIECES, Integer);
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, UPDATE_EXTENT_INITIALIZED, Integer);
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, UPDATE_PIECE_NUMBER, Integer);
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, UPDATE_NUMBER_OF_PIECES, Integer);
@@ -487,7 +486,6 @@ vtkStreamingDemandDrivenPipeline
           vtkInformation* outInfo = outInfoVec->GetInformationObject(i);
           outInfo->CopyEntry(inInfo, WHOLE_BOUNDING_BOX());
           outInfo->CopyEntry(inInfo, WHOLE_EXTENT());
-          outInfo->CopyEntry(inInfo, MAXIMUM_NUMBER_OF_PIECES());
           outInfo->CopyEntry(inInfo, TIME_STEPS());
           outInfo->CopyEntry(inInfo, TIME_RANGE());
           outInfo->CopyEntry(inInfo, vtkDataObject::ORIGIN());
@@ -554,6 +552,7 @@ vtkStreamingDemandDrivenPipeline
     //         }
     //       }
     //     }
+    //   }
     }
 
   if(request->Has(REQUEST_UPDATE_TIME()))
@@ -714,7 +713,6 @@ vtkStreamingDemandDrivenPipeline
 {
   this->Superclass::ResetPipelineInformation(port, info);
   info->Remove(WHOLE_EXTENT());
-  info->Remove(MAXIMUM_NUMBER_OF_PIECES());
   info->Remove(EXACT_EXTENT());
   info->Remove(UPDATE_EXTENT_INITIALIZED());
   info->Remove(UPDATE_EXTENT());
@@ -725,6 +723,7 @@ vtkStreamingDemandDrivenPipeline
   info->Remove(TIME_RANGE());
   info->Remove(UPDATE_TIME_STEP());
   info->Remove(PREVIOUS_UPDATE_TIME_STEP());
+  info->Remove(CAN_HANDLE_PIECE_REQUEST());
 }
 
 //----------------------------------------------------------------------------
@@ -869,14 +868,6 @@ int vtkStreamingDemandDrivenPipeline
     // For an unstructured extent, make sure the update request
     // exists.  We do not need to check if it is valid because
     // out-of-range requests produce empty data.
-    if(!outInfo->Has(MAXIMUM_NUMBER_OF_PIECES()))
-      {
-      vtkErrorMacro("No maximum number of pieces has been set in the "
-                    "information for output port " << outputPort
-                    << " on algorithm " << this->Algorithm->GetClassName()
-                    << "(" << this->Algorithm << ").");
-      return 0;
-      }
     if(!outInfo->Has(UPDATE_PIECE_NUMBER()))
       {
       vtkErrorMacro("No update piece number has been set in the "
@@ -1416,53 +1407,6 @@ int vtkStreamingDemandDrivenPipeline::NeedToExecuteBasedOnTime(
 
     }
   return 0;
-}
-
-//----------------------------------------------------------------------------
-int vtkStreamingDemandDrivenPipeline
-::SetMaximumNumberOfPieces(int port, int n)
-{
-  return this->SetMaximumNumberOfPieces(this->GetOutputInformation(port), n);
-}
-
-//----------------------------------------------------------------------------
-int vtkStreamingDemandDrivenPipeline
-::SetMaximumNumberOfPieces(vtkInformation *info, int n)
-{
-  if(!info)
-    {
-    vtkGenericWarningMacro("SetMaximumNumberOfPieces on invalid output");
-    return 0;
-    }
-  if(vtkStreamingDemandDrivenPipeline::GetMaximumNumberOfPieces(info) != n)
-    {
-    info->Set(MAXIMUM_NUMBER_OF_PIECES(), n);
-    return 1;
-    }
-  return 0;
-}
-
-//----------------------------------------------------------------------------
-int vtkStreamingDemandDrivenPipeline
-::GetMaximumNumberOfPieces(int port)
-{
-  return this->GetMaximumNumberOfPieces(this->GetOutputInformation(port));
-}
-
-//----------------------------------------------------------------------------
-int vtkStreamingDemandDrivenPipeline
-::GetMaximumNumberOfPieces(vtkInformation *info)
-{
-  if(!info)
-    {
-    vtkGenericWarningMacro("GetMaximumNumberOfPieces on invalid output");
-    return 0;
-    }
-  if(!info->Has(MAXIMUM_NUMBER_OF_PIECES()))
-    {
-    info->Set(MAXIMUM_NUMBER_OF_PIECES(), -1);
-    }
-  return info->Get(MAXIMUM_NUMBER_OF_PIECES());
 }
 
 //----------------------------------------------------------------------------
