@@ -53,6 +53,17 @@ vtkExtractUnstructuredGridPiece::vtkExtractUnstructuredGridPiece()
   this->CreateGhostCells = 1;
 }
 
+int vtkExtractUnstructuredGridPiece::RequestInformation(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **vtkNotUsed(inputVector),
+  vtkInformationVector *outputVector)
+{
+  vtkInformation* outInfo = outputVector->GetInformationObject(0);
+  outInfo->Set(vtkStreamingDemandDrivenPipeline::CAN_HANDLE_PIECE_REQUEST(), 1);
+
+  return 1;
+}
+
 int vtkExtractUnstructuredGridPiece::RequestUpdateExtent(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,

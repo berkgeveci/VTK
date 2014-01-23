@@ -56,10 +56,6 @@ vtkRectilinearSynchronizedTemplates::vtkRectilinearSynchronizedTemplates()
   this->ComputeScalars = 1;
   this->GenerateTriangles = 1;
 
-  this->ExecuteExtent[0] = this->ExecuteExtent[1]
-    = this->ExecuteExtent[2] = this->ExecuteExtent[3]
-    = this->ExecuteExtent[4] = this->ExecuteExtent[5] = 0;
-
   this->ArrayComponent = 0;
 
   // by default process active point scalars
@@ -693,14 +689,6 @@ int vtkRectilinearSynchronizedTemplates::RequestData(
 
   vtkDebugMacro(<< "Executing 3D structured contour");
 
-  if ( this->ExecuteExtent[0] >= this->ExecuteExtent[1] ||
-       this->ExecuteExtent[2] >= this->ExecuteExtent[3] ||
-       this->ExecuteExtent[4] >= this->ExecuteExtent[5] )
-    {
-    vtkDebugMacro(<<"3D structured contours requires 3D data");
-    return 1;
-    }
-
   //
   // Check data type and execute appropriate function
   //
@@ -718,11 +706,12 @@ int vtkRectilinearSynchronizedTemplates::RequestData(
     return 1;
     }
 
-  ptr = this->GetScalarsForExtent(inScalars, this->ExecuteExtent, data);
+  int* ext = data->GetExtent();
+  ptr = this->GetScalarsForExtent(inScalars, ext, data);
   switch (inScalars->GetDataType())
     {
     vtkTemplateMacro(
-      ContourRectilinearGrid(this, this->ExecuteExtent, data,
+      ContourRectilinearGrid(this, ext, data,
                              output, (VTK_TT *)ptr, inScalars,this->GenerateTriangles!=0));
     }
 
@@ -752,7 +741,6 @@ int vtkRectilinearSynchronizedTemplates::RequestUpdateExtent(
   // TODO (berk)
   // Need to fix this->ExecuteExtent. Should be same as update extent.
   // Downstream can take of removing ghost levels. Do this in RequestData.
-  abort();
 
   return 1;
 

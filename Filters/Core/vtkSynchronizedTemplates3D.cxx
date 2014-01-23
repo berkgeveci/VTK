@@ -43,8 +43,6 @@
 
 vtkStandardNewMacro(vtkSynchronizedTemplates3D);
 
-vtkInformationKeyRestrictedMacro(vtkSynchronizedTemplates3D, EXECUTE_EXTENT, IntegerVector, 6);
-
 //----------------------------------------------------------------------------
 // Description:
 // Construct object with initial scalar range (0,1) and single contour value
@@ -699,7 +697,7 @@ void vtkSynchronizedTemplates3D::ThreadedExecute(vtkImageData *data,
 
   output = vtkPolyData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-  int* exExt = outInfo->Get(vtkSynchronizedTemplates3D::EXECUTE_EXTENT());
+  int* exExt = data->GetExtent();
   if ( exExt[0] >= exExt[1] || exExt[2] >= exExt[3] || exExt[4] >= exExt[5] )
     {
     vtkDebugMacro(<<"3D structured contours requires 3D data");

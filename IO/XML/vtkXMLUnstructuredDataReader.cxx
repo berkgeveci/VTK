@@ -352,6 +352,10 @@ void vtkXMLUnstructuredDataReader::SetupOutputInformation(vtkInformation *outInf
 {
   this->Superclass::SetupOutputInformation(outInfo);
 
+  if (this->NumberOfPieces > 1)
+    {
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::CAN_HANDLE_PIECE_REQUEST(), 1);
+    }
   // Set the maximum number of pieces that can be provided by this
   // reader.
   //outInfo->Set(vtkStreamingDemandDrivenPipeline::MAXIMUM_NUMBER_OF_PIECES(),
