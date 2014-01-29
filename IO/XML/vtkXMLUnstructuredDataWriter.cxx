@@ -125,7 +125,7 @@ int vtkXMLUnstructuredDataWriter::ProcessRequest(vtkInformation* request,
     // but we need to preserve the user's requested number of pieces in
     // case the input changes later.  If MaximumNumberOfPieces is lower
     // than 1, any number of pieces can be produced by the pipeline.
-    vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+    //vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
     int numPieces = this->NumberOfPieces;
     /*
     int maxPieces =

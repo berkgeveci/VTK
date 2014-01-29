@@ -314,7 +314,7 @@ int vtkExtractVOI::RequestData(
   // to what the output update extent would be based on it.
   // TODO (berk)
   // left/right extents may need to be adjusted by 1 here.
-  int piece = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
+  //int piece = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
   for (i=0; i<3; i++)
     {
     int ext;

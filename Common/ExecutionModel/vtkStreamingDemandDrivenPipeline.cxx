@@ -637,7 +637,6 @@ vtkStreamingDemandDrivenPipeline
       // there is output information with a data object.
       vtkInformation* outInfo =
         outInfoVec->GetInformationObject((outputPort >= 0)? outputPort : 0);
-      vtkDataObject* outData = outInfo->Get(vtkDataObject::DATA_OBJECT());
 
       // Loop over all input ports.
       for(int i=0; i < this->Algorithm->GetNumberOfInputPorts(); ++i)

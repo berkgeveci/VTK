@@ -166,24 +166,25 @@ int vtkTransmitRectilinearGridPiece::RequestData(
     this->SatelliteExecute(procId, output, outInfo);
     }
 
-  int ghostLevel = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
+  // TODO (berk)
+  // Fix this
+  /*
+    int ghostLevel = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
   if (ghostLevel > 0 && this->CreateGhostCells)
     {
     int updatePiece = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
     int updateNumPieces = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
     vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
     int* wholeExt = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
-    // TODO (berk)
-    // Fix this
-    /*
+
     vtkExtentTranslator* et = vtkStreamingDemandDrivenPipeline::GetExtentTranslator(inInfo);
     output->GenerateGhostLevelArray(updatePiece,
                                     updateNumPieces,
                                     ghostLevel,
                                     wholeExt,
                                     et);
-    */
     }
+  */
 
   return 1;
 }

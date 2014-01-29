@@ -124,7 +124,7 @@ int vtkRTAnalyticSource::RequestInformation(
   return 1;
 }
 
-void vtkRTAnalyticSource::ExecuteDataWithInformation(vtkDataObject *output,
+void vtkRTAnalyticSource::ExecuteDataWithInformation(vtkDataObject *vtkNotUsed(output),
                                                      vtkInformation *outInfo)
 {
   float *outPtr;

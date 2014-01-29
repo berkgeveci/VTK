@@ -563,7 +563,7 @@ void vtkSynchronizedTemplatesCutter3D::ThreadedExecute(vtkImageData *data,
 
 //----------------------------------------------------------------------------
 int vtkSynchronizedTemplatesCutter3D::RequestData(
-  vtkInformation *request,
+  vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,
   vtkInformationVector *outputVector)
 {

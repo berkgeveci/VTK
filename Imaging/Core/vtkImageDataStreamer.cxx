@@ -120,7 +120,6 @@ int vtkImageDataStreamer::ProcessRequest(vtkInformation* request,
 
     int inExt[6];
     inInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt);
-    int * ext = input->GetExtent();
 
     output->CopyAndCastFrom(input, inExt);
 
