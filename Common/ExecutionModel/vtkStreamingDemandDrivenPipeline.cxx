@@ -1296,7 +1296,11 @@ int vtkStreamingDemandDrivenPipeline
       }
     }
 
-  if (outInfo->Has(UPDATE_EXTENT()))
+  if (outInfo->Has(UPDATE_EXTENT())
+      &&
+      dataInfo->Has(vtkDataObject::DATA_EXTENT_TYPE()) &&
+      dataInfo->Get(vtkDataObject::DATA_EXTENT_TYPE()) == VTK_3D_EXTENT
+      )
     {
     if (!dataInfo->Has(vtkDataObject::DATA_EXTENT()) &&
         !dataInfo->Has(vtkDataObject::ALL_PIECES_EXTENT()))

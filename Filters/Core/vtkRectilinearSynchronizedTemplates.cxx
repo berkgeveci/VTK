@@ -696,6 +696,7 @@ int vtkRectilinearSynchronizedTemplates::RequestData(
   if (inScalars == NULL)
     {
     vtkErrorMacro("No scalars for contouring.");
+    return 1;
     }
   int numComps = inScalars->GetNumberOfComponents();
 
