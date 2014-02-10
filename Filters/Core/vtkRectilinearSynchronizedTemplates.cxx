@@ -739,12 +739,7 @@ int vtkRectilinearSynchronizedTemplates::RequestUpdateExtent(
                 ghostLevels + 1);
     }
 
-  // TODO (berk)
-  // Need to fix this->ExecuteExtent. Should be same as update extent.
-  // Downstream can take of removing ghost levels. Do this in RequestData.
-
   return 1;
-
 }
 
 //----------------------------------------------------------------------------

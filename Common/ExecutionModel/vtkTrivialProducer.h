@@ -60,6 +60,12 @@ public:
   vtkSetVector6Macro(WholeExtent, int);
   vtkGetVector6Macro(WholeExtent, int);
 
+  // Description:
+  // This method can be used to copy meta-data from an existing data
+  // object to an information object. For example, whole extent,
+  // image data spacing, origin etc.
+  static void FillOutputDataInformation(vtkDataObject* output,
+                                        vtkInformation* outInfo);
 
 protected:
   vtkTrivialProducer();

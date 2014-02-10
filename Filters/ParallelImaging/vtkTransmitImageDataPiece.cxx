@@ -37,13 +37,6 @@ vtkTransmitImageDataPiece::vtkTransmitImageDataPiece()
   this->CreateGhostCells = 1;
   this->SetNumberOfInputPorts(1);
   this->SetController(vtkMultiProcessController::GetGlobalController());
-  if (this->Controller)
-    {
-    if (this->Controller->GetLocalProcessId() != 0)
-      {
-      this->SetNumberOfInputPorts(0);
-      }
-    }
 }
 
 //----------------------------------------------------------------------------

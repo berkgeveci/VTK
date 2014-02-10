@@ -35,6 +35,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkRectilinearGrid.h"
 #include "vtkSmartPointer.h"
 #include "vtkStructuredGrid.h"
+#include "vtkTrivialProducer.h"
 #include "vtkUniformGrid.h"
 
 vtkStandardNewMacro(vtkCompositeDataPipeline);
@@ -443,8 +444,7 @@ vtkDataObject* vtkCompositeDataPipeline::ExecuteSimpleAlgorithmForBlock(
     inInfo->Remove(vtkDataObject::DATA_OBJECT());
     inInfo->Set(vtkDataObject::DATA_OBJECT(), dobj);
 
-    // Process the whole dataset
-    this->CopyFromDataToInformation(dobj, inInfo);
+    vtkTrivialProducer::FillOutputDataInformation(dobj, inInfo);
     }
 
   request->Set(REQUEST_DATA_OBJECT());
@@ -454,13 +454,6 @@ vtkDataObject* vtkCompositeDataPipeline::ExecuteSimpleAlgorithmForBlock(
   request->Remove(REQUEST_DATA_OBJECT());
 
   request->Set(REQUEST_INFORMATION());
-
-  // Berk TODO: Replace with a trivial producer
-  // // Make sure that pipeline informations is in sync with the data
-  // if (dobj)
-  //   {
-  //   dobj->CopyInformationToPipeline(request, 0, inInfo, 1);
-  //   }
 
   this->Superclass::ExecuteInformation(request, inInfoVec, outInfoVec);
   request->Remove(REQUEST_INFORMATION());
@@ -879,32 +872,6 @@ void vtkCompositeDataPipeline::ResetPipelineInformation(int port,
 }
 
 //----------------------------------------------------------------------------
-void vtkCompositeDataPipeline::CopyFromDataToInformation(
-  vtkDataObject* dobj, vtkInformation* inInfo)
-{
-  if (dobj->IsA("vtkImageData"))
-    {
-    inInfo->Set(
-      WHOLE_EXTENT(), static_cast<vtkImageData*>(dobj)->GetExtent(), 6);
-    }
-  else if (dobj->IsA("vtkStructuredGrid"))
-    {
-    inInfo->Set(
-      WHOLE_EXTENT(), static_cast<vtkStructuredGrid*>(dobj)->GetExtent(), 6);
-    }
-  else if (dobj->IsA("vtkRectilinearGrid"))
-    {
-    inInfo->Set(
-      WHOLE_EXTENT(), static_cast<vtkRectilinearGrid*>(dobj)->GetExtent(), 6);
-    }
-  else if (dobj->IsA("vtkUniformGrid"))
-    {
-    inInfo->Set(
-      WHOLE_EXTENT(), static_cast<vtkUniformGrid*>(dobj)->GetExtent(), 6);
-    }
-}
-
-//----------------------------------------------------------------------------
 void vtkCompositeDataPipeline::PushInformation(vtkInformation* inInfo)
 {
   vtkDebugMacro(<< "PushInformation " << inInfo);
@@ -1034,8 +1001,6 @@ vtkCompositeDataSet* vtkCompositeDataPipeline::CreateOutputCompositeDataSet(
     // Set the input to be vtkUniformGrid.
     inInfo->Remove(vtkDataObject::DATA_OBJECT());
     inInfo->Set(vtkDataObject::DATA_OBJECT(), tempInput);
-    // Process the whole dataset
-    this->CopyFromDataToInformation(tempInput, inInfo);
     // The request is forwarded upstream through the pipeline.
     request->Set(vtkExecutive::FORWARD_DIRECTION(), vtkExecutive::RequestUpstream);
     // Algorithms process this request after it is forwarded.

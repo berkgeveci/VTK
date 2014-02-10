@@ -421,17 +421,7 @@ vtkStreamingDemandDrivenPipeline
         {
         return 0;
         }
-      /*
-      // Set default maximum request.
-      if(data->GetExtentType() == VTK_PIECES_EXTENT)
-        {
-        // TODO (berk): Why is the default -1. For now changing
-        if(!info->Has(MAXIMUM_NUMBER_OF_PIECES()))
-          {
-          info->Set(MAXIMUM_NUMBER_OF_PIECES(), -1);
-          }
-        }
-      else */
+
       if(data->GetExtentType() == VTK_3D_EXTENT)
         {
         if(!info->Has(WHOLE_EXTENT()))
@@ -509,50 +499,6 @@ vtkStreamingDemandDrivenPipeline
           }
         }
       }
-
-
-    // TODO (berk)
-    // For simplicity, MAXIMUM_NUMBER_OF_PIECES or some other key
-    // indicating parallel ability should be set by all sources including
-    // structured sources. That key should be used mainly by the executive
-    // to decide how to execute the source not necessarily key propagation.
-    // I left this code here as a reminder of the previous behavior.
-
-    // // Setup default information for the outputs.
-    // for(int i=0; i < outInfoVec->GetNumberOfInformationObjects(); ++i)
-    //   {
-    //   vtkInformation* outInfo = outInfoVec->GetInformationObject(i);
-
-    //   // The data object will exist because UpdateDataObject has already
-    //   // succeeded. Except when this method is called by a subclass
-    //   // that does not provide this key in certain cases.
-    //   vtkDataObject* dataObject = outInfo->Get(vtkDataObject::DATA_OBJECT());
-    //   if (!dataObject)
-    //     {
-    //     continue;
-    //     }
-    //   vtkInformation* dataInfo = dataObject->GetInformation();
-    //   if(dataInfo->Get(vtkDataObject::DATA_EXTENT_TYPE()) ==
-    //      VTK_PIECES_EXTENT)
-    //     {
-    //     if (!outInfo->Has(MAXIMUM_NUMBER_OF_PIECES()))
-    //       {
-    //       if (this->GetNumberOfInputPorts() > 0)
-    //         {
-    //         // must have structured input; MAXIMUM_NUMBER_OF_PIECES will
-    //         // not be copied above (CopyEntry does nothing since key not set
-    //         // in inInfo); set to -1
-    //         outInfo->Set(MAXIMUM_NUMBER_OF_PIECES(), -1);
-    //         }
-    //       else
-    //         {
-    //         // Since most unstructured filters in VTK generate all their
-    //         // data once, set the default maximum number of pieces to 1.
-    //         outInfo->Set(MAXIMUM_NUMBER_OF_PIECES(), 1);
-    //         }
-    //       }
-    //     }
-    //   }
     }
 
   if(request->Has(REQUEST_UPDATE_TIME()))
@@ -677,21 +623,6 @@ vtkStreamingDemandDrivenPipeline
           if (outInfo->Has(UPDATE_EXTENT()))
             {
             inInfo->CopyEntry(outInfo, UPDATE_EXTENT());
-            }
-          else
-            {
-            /*
-            // TODO (berk)
-            // This doesn't make sense. Input and output types
-            // should be the other way around.
-            if(inData->GetExtentType() == VTK_PIECES_EXTENT &&
-               outData->GetExtentType() == VTK_3D_EXTENT)
-              {
-              int extent[6] = {0, -1, 0, -1, 0, -1};
-              inInfo->Get(WHOLE_EXTENT(), extent);
-              this->SetUpdateExtent(inInfo, extent);
-              }
-            */
             }
 
           inInfo->CopyEntry(outInfo, UPDATE_PIECE_NUMBER());
@@ -1098,10 +1029,6 @@ vtkStreamingDemandDrivenPipeline
     outputPort = (outputPort >= 0 ? outputPort : 0);
     }
 
-  // TODO (berk)
-  // This logic is weird. Why are we setting values from the
-  // FROM_OUTPUT_PORT to all other ports.
-
   // Get the piece request from the update port (port 0 if none)
   // The defaults are:
   int piece = 0;
@@ -1132,30 +1059,6 @@ vtkStreamingDemandDrivenPipeline
     // Compute ghost level arrays for generated outputs.
     if(data && !outInfo->Get(DATA_NOT_GENERATED()))
       {
-
-      // TODO (berk)
-      // This needs to apply to only sources/readers but only to structured
-      // reader that can read arbitrary extents.
-
-      // if(vtkDataSet* ds = vtkDataSet::SafeDownCast(data))
-      //   {
-      //   // Generate ghost level arrays automatically only if the extent
-      //   // was set through translation. Otherwise, 1. there is no need
-      //   // for a ghost array 2. it may be wrong
-      //   if (outInfo->Has(UPDATE_EXTENT_TRANSLATED()))
-      //     {
-      //     if (outInfo->Get(UPDATE_NUMBER_OF_GHOST_LEVELS()) > 0)
-      //       {
-      //       ds->GenerateGhostLevelArray(
-      //         outInfo->Get(UPDATE_PIECE_NUMBER()),
-      //         outInfo->Get(UPDATE_NUMBER_OF_PIECES()),
-      //         outInfo->Get(UPDATE_NUMBER_OF_GHOST_LEVELS()),
-      //         outInfo->Get(WHOLE_EXTENT()),
-      //         vtkExtentTranslator::SafeDownCast(outInfo->Get(EXTENT_TRANSLATOR())));
-      //       }
-      //     }
-      //   }
-
       // Copy the update piece information from the update port to
       // the data piece information of all output ports UNLESS the
       // algorithm already specified it.
@@ -1270,9 +1173,6 @@ int vtkStreamingDemandDrivenPipeline
   // VerifyOutputInformation.
   vtkDataObject* dataObject = outInfo->Get(vtkDataObject::DATA_OBJECT());
   vtkInformation* dataInfo = dataObject->GetInformation();
-
-  // TODO (berk)
-  // Need to execute should return false when update num. pieces is 0
 
   // Check the unstructured extent.  If we do not have the requested
   // piece, we need to execute.
