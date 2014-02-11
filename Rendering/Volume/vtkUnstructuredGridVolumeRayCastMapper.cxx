@@ -201,8 +201,6 @@ void vtkUnstructuredGridVolumeRayCastMapper::Render( vtkRenderer *ren, vtkVolume
     return;
     }
 
-  // TODO (berk)
-  // Find why this is causing a new execution. Before, it did not.
   int inputAlgPort;
   vtkAlgorithm* inputAlg = this->GetInputAlgorithm(0, 0, inputAlgPort);
   inputAlg->UpdateInformation();

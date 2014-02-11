@@ -309,9 +309,6 @@ int vtkExtractGrid::RequestData(
   // Input extent can be a subset of the input extent when there are
   // multiple pieces. This takes cares of mapping existing input extent
   // to what the output update extent would be based on it.
-  // TODO (berk)
-  // left/right extents may need to be adjusted by 1 here.
-  //int piece = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
   for (i=0; i<3; i++)
     {
     int ext;

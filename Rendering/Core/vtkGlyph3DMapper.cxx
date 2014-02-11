@@ -645,7 +645,7 @@ double* vtkGlyph3DMapper::GetBounds()
     //this->GetInput()->Update();
 
     // first get the bounds from the input
-    this->Update();
+    this->GetInputAlgorithm()->Update();
     }
 
   vtkDataObject* dobj = this->GetInputDataObject(0, 0);

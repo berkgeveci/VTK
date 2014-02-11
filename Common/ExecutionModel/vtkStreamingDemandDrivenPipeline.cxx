@@ -547,11 +547,6 @@ vtkStreamingDemandDrivenPipeline
       outputPort = request->Get(FROM_OUTPUT_PORT());
       }
 
-    // TODO (berk)
-    // This might need tweaking. It may not work in cases
-    // where a mapper sets its input extent and then calls
-    // update on itself. This would overwrite it.
-
     // Initialize input extent to whole extent if it is not
     // already initialized.
     // This may be overwritten by the default code below as
