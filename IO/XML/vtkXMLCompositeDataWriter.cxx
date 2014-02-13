@@ -34,13 +34,7 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtkXMLDataElement.h"
 #include "vtkXMLImageDataWriter.h"
-#include "vtkXMLPDataWriter.h"
-#include "vtkXMLPImageDataWriter.h"
 #include "vtkXMLPolyDataWriter.h"
-#include "vtkXMLPPolyDataWriter.h"
-#include "vtkXMLPRectilinearGridWriter.h"
-#include "vtkXMLPStructuredGridWriter.h"
-#include "vtkXMLPUnstructuredGridWriter.h"
 #include "vtkXMLRectilinearGridWriter.h"
 #include "vtkXMLStructuredGridWriter.h"
 #include "vtkXMLUnstructuredGridWriter.h"
@@ -492,12 +486,6 @@ void vtkXMLCompositeDataWriter::CreateWriters(vtkCompositeDataSet* hdInput)
         w->SetBlockSize(this->GetBlockSize());
         w->SetDataMode(this->GetDataMode());
         w->SetEncodeAppendedData(this->GetEncodeAppendedData());
-        }
-
-      // If this is a parallel writer, set the piece information.
-      if(vtkXMLPDataWriter::SafeDownCast(this->Internal->Writers[i].GetPointer()))
-        {
-        vtkErrorMacro("Should not have parallel writers here.");
         }
       }
     i++;
