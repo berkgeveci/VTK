@@ -27,6 +27,7 @@ set(Module_SRCS
   vtkPSphereSource.cxx
   vtkRectilinearGridOutlineFilter.cxx
   vtkTransmitPolyDataPiece.cxx
+  vtkTransmitStructuredDataPiece.cxx
   vtkTransmitRectilinearGridPiece.cxx
   vtkTransmitStructuredGridPiece.cxx
   vtkTransmitUnstructuredGridPiece.cxx
