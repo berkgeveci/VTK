@@ -857,8 +857,6 @@ void vtkParallelRenderManager::LocalComputeVisiblePropBounds(vtkRenderer *ren,
 void vtkParallelRenderManager::ComputeVisiblePropBounds(vtkRenderer *ren,
                                                         double bounds[6])
 {
-  cout << "ComputeVisiblePropBounds" << endl;
-
   if (!this->ParallelRendering)
     {
     ren->ComputeVisiblePropBounds(bounds);
