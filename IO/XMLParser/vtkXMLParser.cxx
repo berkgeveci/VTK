@@ -481,7 +481,6 @@ void vtkXMLParser::ReportXmlParseError()
     << XML_GetCurrentByteIndex(static_cast<XML_Parser>(this->Parser))
     << ": "
     << XML_ErrorString(XML_GetErrorCode(static_cast<XML_Parser>(this->Parser))));
-  abort();
 }
 
 //----------------------------------------------------------------------------
