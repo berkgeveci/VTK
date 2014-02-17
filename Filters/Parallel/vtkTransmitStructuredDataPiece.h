@@ -59,6 +59,7 @@ protected:
   void SatelliteExecute(int procId, vtkDataSet *output,
                         vtkInformation *outInfo);
   virtual int RequestInformation(vtkInformation *, vtkInformationVector **, vtkInformationVector *);
+  virtual int RequestUpdateExtent(vtkInformation *, vtkInformationVector **, vtkInformationVector *);
 
   int CreateGhostCells;
   vtkMultiProcessController *Controller;

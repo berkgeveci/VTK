@@ -64,6 +64,24 @@ int vtkTransmitStructuredDataPiece::RequestInformation(
 }
 
 //----------------------------------------------------------------------------
+int vtkTransmitStructuredDataPiece::RequestUpdateExtent(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **inputVector,
+  vtkInformationVector *vtkNotUsed(outputVector))
+{
+  if (this->Controller)
+    {
+    if (this->Controller->GetLocalProcessId() > 0)
+      {
+      int wExt[6] = {0, -1, 0, -1, 0, -1};
+      inputVector[0]->GetInformationObject(0)->Set(
+        vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), wExt, 6);
+      }
+    }
+  return 1;
+}
+
+//----------------------------------------------------------------------------
 int vtkTransmitStructuredDataPiece::RequestData(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,
