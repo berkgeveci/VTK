@@ -402,12 +402,6 @@ void vtkGlyph3DMapper::PrintSelf(ostream& os, vtkIndent indent)
     sourceInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(),
       0);
     }
-  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER(),
-    outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER()));
-  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES(),
-    outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES()));
-  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(),
-    outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS()));
   inInfo->Set(vtkStreamingDemandDrivenPipeline::EXACT_EXTENT(), 1);
 
   return 1;
@@ -645,7 +639,7 @@ double* vtkGlyph3DMapper::GetBounds()
     //this->GetInput()->Update();
 
     // first get the bounds from the input
-    this->GetInputAlgorithm()->Update();
+    this->Update();
     }
 
   vtkDataObject* dobj = this->GetInputDataObject(0, 0);
