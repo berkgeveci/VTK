@@ -55,6 +55,7 @@ vtkXMLPDataWriter::~vtkXMLPDataWriter()
   delete [] this->FileNameBase;
   delete [] this->FileNameExtension;
   delete [] this->PieceFileNameExtension;
+  this->SetController(0);
   this->ProgressObserver->Delete();
 }
 
