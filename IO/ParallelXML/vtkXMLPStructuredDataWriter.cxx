@@ -88,7 +88,7 @@ int vtkXMLPStructuredDataWriter::WritePieces()
 
   // The code below gathers extens from all processes to write in the
   // meta-file. Note that the extent of each piece was already stored by
-  // each reader in WritePiece(). This is gathering it all to root node.
+  // each writer in WritePiece(). This is gathering it all to root node.
   if (result)
     {
     if (this->Controller)
@@ -162,7 +162,6 @@ int vtkXMLPStructuredDataWriter::WritePieces()
       delete[] offsets;
       delete[] recvLengths;
       delete[] sendBuffer;
-      int nranks = this->Controller->GetNumberOfProcesses();
       }
     }
   return result;
