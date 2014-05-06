@@ -213,7 +213,7 @@ int vtkDataSetSurfaceFilter::RequestData(
     case VTK_STRUCTURED_GRID:
       {
       vtkStructuredGrid *grid = vtkStructuredGrid::SafeDownCast(input);
-      if (grid->GetCellBlanking())
+      if (grid->GetPointGhostArray() || grid->GetCellGhostArray())
         {
         return this->DataSetExecute(grid, output);
         }
@@ -1097,7 +1097,7 @@ int vtkDataSetSurfaceFilter::DataSetExecute(vtkDataSet *input,
     }
 
   vtkStructuredGrid *sgridInput = vtkStructuredGrid::SafeDownCast(input);
-  bool mayBlank = sgridInput && sgridInput->GetCellBlanking();
+  bool mayBlank = sgridInput && (sgridInput->GetPointGhostArray() || sgridInput->GetCellGhostArray());
 
   cellIds = vtkIdList::New();
   pts = vtkIdList::New();

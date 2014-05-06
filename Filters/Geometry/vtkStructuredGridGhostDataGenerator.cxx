@@ -68,8 +68,8 @@ void vtkStructuredGridGhostDataGenerator::RegisterGrids(
 
     this->GridConnectivity->RegisterGrid(
         static_cast<int>(i),info->Get(vtkDataObject::PIECE_EXTENT()),
-        grid->GetPointVisibilityArray(),
-        grid->GetCellVisibilityArray(),
+        grid->GetPointGhostArray(),
+        grid->GetCellGhostArray(),
         grid->GetPointData(),
         grid->GetCellData(),
         grid->GetPoints() );
