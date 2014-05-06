@@ -611,7 +611,7 @@ vtkUnstructuredGrid* vtkLSDynaPart::RemoveDeletedCells()
   newPoints->FastDelete();
 
   this->ThresholdGrid->Squeeze();
-  cd->RemoveArray("vtkGhostLevels");
+  cd->RemoveArray(vtkDataSetAttributes::GhostArrayName());
 
   return this->ThresholdGrid;
 }
@@ -630,10 +630,10 @@ void vtkLSDynaPart::EnableDeadCells(const int& deadCellsAsGhostArray)
     this->CellProperties->SetDeadCellArray(dead);
     }
 
-  if(!this->Grid->GetCellData()->HasArray("vtkGhostLevels"))
+  if(!this->Grid->GetCellData()->HasArray(vtkDataSetAttributes::GhostArrayName()))
     {
     vtkUnsignedCharArray *deadCells = vtkUnsignedCharArray::New();
-    deadCells->SetName("vtkGhostLevels");
+    deadCells->SetName(vtkDataSetAttributes::GhostArrayName());
     deadCells->SetVoidArray(this->CellProperties->GetDeadVoidPtr(),
                              this->NumberOfCells,1);
 
@@ -646,9 +646,9 @@ void vtkLSDynaPart::EnableDeadCells(const int& deadCellsAsGhostArray)
 void vtkLSDynaPart::DisableDeadCells()
 {
   this->HasDeadCells = false;
-  if(this->Grid->GetCellData()->HasArray("vtkGhostLevels"))
+  if(this->Grid->GetCellData()->HasArray(vtkDataSetAttributes::GhostArrayName()))
     {
-    this->Grid->GetCellData()->RemoveArray("vtkGhostLevels");
+    this->Grid->GetCellData()->RemoveArray(vtkDataSetAttributes::GhostArrayName());
     }
 }
 

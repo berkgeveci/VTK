@@ -1369,7 +1369,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecute(vtkDataSet *dataSetInput,
     }
 
   vtkUnsignedCharArray* ghosts = vtkUnsignedCharArray::SafeDownCast(
-    input->GetPointData()->GetArray("vtkGhostLevels"));
+    input->GetPointData()->GetArray(vtkDataSetAttributes::GhostArrayName()));
   vtkCellArray *newVerts;
   vtkCellArray *newLines;
   vtkCellArray *newPolys;

@@ -1983,8 +1983,8 @@ void vtkPolyData::RemoveGhostCells(int level)
   // If there are no more ghost levels, then remove all arrays.
   if (level <= 1)
     {
-    this->CellData->RemoveArray("vtkGhostLevels");
-    this->PointData->RemoveArray("vtkGhostLevels");
+    this->CellData->RemoveArray(vtkDataSetAttributes::GhostArrayName());
+    this->PointData->RemoveArray(vtkDataSetAttributes::GhostArrayName());
     }
 
   this->Squeeze();

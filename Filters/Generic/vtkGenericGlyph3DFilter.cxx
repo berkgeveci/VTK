@@ -219,7 +219,7 @@ int vtkGenericGlyph3DFilter::RequestData(
   vtkDataArray* temp = 0;
   if (pd)
     {
-    temp = pd->GetArray("vtkGhostLevels");
+    temp = pd->GetArray(vtkDataSetAttributes::GhostArrayName());
     }
   if ( (!temp) || (temp->GetDataType() != VTK_UNSIGNED_CHAR)
        || (temp->GetNumberOfComponents() != 1))

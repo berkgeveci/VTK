@@ -1896,7 +1896,7 @@ void vtkUnstructuredGrid::RemoveGhostCells(int level)
 
 
   // Get a pointer to the cell ghost level array.
-  temp = this->CellData->GetArray("vtkGhostLevels");
+  temp = this->CellData->GetArray(vtkDataSetAttributes::GhostArrayName());
   if (temp == NULL)
     {
     vtkDebugMacro("Could not find cell ghost level array.");

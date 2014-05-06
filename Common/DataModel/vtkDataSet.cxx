@@ -469,7 +469,7 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
     }
 
   // Avoid generating these if the producer has generated them.
-  if(!this->PointData->GetArray("vtkGhostLevels"))
+  if(!this->PointData->GetArray(vtkDataSetAttributes::GhostArrayName()))
     { // Create ghost levels for cells and points.
     vtkUnsignedCharArray *levels;
     int extent[6];
@@ -547,7 +547,7 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
           }
         }
       }
-    levels->SetName("vtkGhostLevels");
+    levels->SetName(vtkDataSetAttributes::GhostArrayName());
     this->PointData->AddArray(levels);
     levels->Delete();
 

@@ -175,7 +175,7 @@ int vtkGeometryFilter::RequestData(
   vtkDataArray* temp = 0;
   if (cd)
     {
-    temp = cd->GetArray("vtkGhostLevels");
+    temp = cd->GetArray(vtkDataSetAttributes::GhostArrayName());
     }
   if ( (!temp) || (temp->GetDataType() != VTK_UNSIGNED_CHAR)
     || (temp->GetNumberOfComponents() != 1))

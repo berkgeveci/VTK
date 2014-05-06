@@ -266,14 +266,14 @@ int vtkExtractPolyDataPiece::RequestData(
 
   if (cellGhostLevels)
     {
-    cellGhostLevels->SetName("vtkGhostLevels");
+    cellGhostLevels->SetName(vtkDataSetAttributes::GhostArrayName());
     output->GetCellData()->AddArray(cellGhostLevels);
     cellGhostLevels->Delete();
     cellGhostLevels = 0;
      }
   if (pointGhostLevels)
     {
-    pointGhostLevels->SetName("vtkGhostLevels");
+    pointGhostLevels->SetName(vtkDataSetAttributes::GhostArrayName());
     output->GetPointData()->AddArray(pointGhostLevels);
     pointGhostLevels->Delete();
     pointGhostLevels = 0;

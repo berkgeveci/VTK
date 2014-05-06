@@ -131,7 +131,7 @@ int vtkApproximatingSubdivisionFilter::RequestData(
   vtkCellData* cd = inputDS->GetCellData();
   if (cd)
     {
-    vtkDataArray* temp = cd->GetArray("vtkGhostLevels");
+    vtkDataArray* temp = cd->GetArray(vtkDataSetAttributes::GhostArrayName());
     if (temp)
       {
       ghostLevels = static_cast<vtkUnsignedCharArray*>(temp)->GetPointer(0);
