@@ -37,7 +37,6 @@
 #include "vtkPStructuredGridConnectivity.h"
 #include "vtkStructuredGridConnectivity.h"
 #include "vtkStructuredNeighbor.h"
-#include "vtkGhostArray.h"
 #include "vtkPointData.h"
 #include "vtkCellData.h"
 #include "vtkUniformGridPartitioner.h"
@@ -107,10 +106,7 @@ int GetTotalNumberOfNodes( vtkMultiBlockDataSet *multiblock )
       vtkIdType pntIdx = 0;
       for( ; pntIdx < grid->GetNumberOfPoints(); ++pntIdx )
         {
-        unsigned char nodeProperty =
-            *(grid->GetPointGhostArray()->GetPointer( pntIdx ));
-        if( !vtkGhostArray::IsPropertySet(
-            nodeProperty,vtkGhostArray::IGNORE ) )
+        if(grid->IsPointVisible(pntIdx))
           {
           ++numNodes;
           }
@@ -345,9 +341,7 @@ double GetXYZSumForGrid( vtkUniformGrid *grid )
   double sum = 0.0;
   for( vtkIdType pntIdx=0; pntIdx < grid->GetNumberOfPoints(); ++pntIdx )
     {
-    unsigned char nodeProperty =
-      *(grid->GetPointGhostArray()->GetPointer( pntIdx ));
-    if( !vtkGhostArray::IsPropertySet( nodeProperty,vtkGhostArray::IGNORE ) )
+    if(grid->IsPointVisible(pntIdx))
       {
       grid->GetPoint( pntIdx, pnt );
       sum += pnt[0];

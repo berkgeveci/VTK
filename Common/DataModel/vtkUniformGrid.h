@@ -22,7 +22,6 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkImageData.h"
-#include "vtkSmartPointer.h" // for irvars
 
 class vtkEmptyCell;
 class vtkStructuredVisibilityConstraint;
@@ -191,8 +190,8 @@ protected:
   // Override this method because of blanking.
   virtual void ComputeScalarRange();
 
-  vtkSmartPointer<vtkUnsignedCharArray> CellGhostArray; //this points to the ghost array in cell data, if there is any
-  vtkSmartPointer<vtkUnsignedCharArray> PointGhostArray; //this points to the ghost array in point data, if there is any
+  vtkUnsignedCharArray *PointGhostArray;
+  vtkUnsignedCharArray *CellGhostArray;
 
   vtkEmptyCell* GetEmptyCell();
 

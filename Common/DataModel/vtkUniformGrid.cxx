@@ -23,23 +23,21 @@
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkLine.h"
-#include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPixel.h"
 #include "vtkPointData.h"
 #include "vtkPoints.h"
-#include "vtkStructuredVisibilityConstraint.h"
 #include "vtkStructuredData.h"
+#include "vtkUnsignedCharArray.h"
 #include "vtkVertex.h"
 #include "vtkVoxel.h"
-#include "vtkIntArray.h"
 
 vtkStandardNewMacro(vtkUniformGrid);
 
 //----------------------------------------------------------------------------
 vtkUniformGrid::vtkUniformGrid()
 {
-  this->EmptyCell = 0;
+  this->EmptyCell = NULL;
   this->CellGhostArray = NULL;
   this->PointGhostArray = NULL;
 }
@@ -111,7 +109,7 @@ int vtkUniformGrid::Initialize(
   ghosts->SetName(vtkDataSetAttributes::GhostArrayName());
   ghosts->SetNumberOfComponents(1);
   ghosts->SetNumberOfTuples(nCells[0]*nCells[1]*nCells[2]);
-  ghosts->FillComponent(0,'\0');
+  ghosts->FillComponent(0,0);
   // If there are ghost cells mark them.
   if (nGhostsI || nGhostsJ || nGhostsK)
     {
@@ -180,12 +178,6 @@ void vtkUniformGrid::CopyStructure(vtkDataSet *ds)
   this->Initialize();
 
   this->Superclass::CopyStructure(ds);
-
-  vtkUniformGrid *sPts = vtkUniformGrid::SafeDownCast(ds);
-  if (!sPts)
-    {
-    return;
-    }
 }
 
 //----------------------------------------------------------------------------
@@ -676,7 +668,6 @@ vtkImageData* vtkUniformGrid::NewImageDataCopy()
   return copy;
 }
 
-
 //----------------------------------------------------------------------------
 // Override this method because of blanking
 void vtkUniformGrid::ComputeScalarRange()
@@ -744,13 +735,13 @@ void vtkUniformGrid::ComputeScalarRange()
 // Turn off a particular data point.
 void vtkUniformGrid::BlankPoint(vtkIdType ptId)
 {
-  vtkUnsignedCharArray* ghost = this->GetPointGhostArray();
-  if(!ghost)
+  vtkUnsignedCharArray* ghosts = this->GetPointGhostArray();
+  if(!ghosts)
     {
     this->AllocatePointGhostArray();
-    ghost = this->GetPointGhostArray();
+    ghosts = this->GetPointGhostArray();
     }
-  ghost->SetValue(ptId, ghost->GetValue(ptId) | vtkDataSetAttributes::DUPLICATEPOINT);
+  ghosts->SetValue(ptId, ghosts->GetValue(ptId) | vtkDataSetAttributes::DUPLICATEPOINT);
   assert(!this->IsPointVisible(ptId));
 }
 
@@ -767,12 +758,12 @@ void vtkUniformGrid::BlankPoint( const int i, const int j, const int k )
 // Turn on a particular data point.
 void vtkUniformGrid::UnBlankPoint(vtkIdType ptId)
 {
-  vtkUnsignedCharArray* ghost = this->GetPointGhostArray();
-  if(!ghost)
+  vtkUnsignedCharArray* ghosts = this->GetPointGhostArray();
+  if(!ghosts)
     {
     return;
     }
-  ghost->SetValue(ptId, 0);
+  ghosts->SetValue(ptId, 0);
   assert(this->IsPointVisible(ptId));
 }
 
@@ -796,8 +787,8 @@ void vtkUniformGrid::SetPointGhostArray(vtkUnsignedCharArray *ghosts)
   else
     {
     this->GetPointData()->RemoveArray(vtkDataSetAttributes::GhostArrayName());
-    this->PointGhostArray=NULL;
     }
+  this->PointGhostArray=NULL;
 }
 
 //----------------------------------------------------------------------------
@@ -839,12 +830,12 @@ void vtkUniformGrid::BlankCell( const int i, const int j, const int k )
 // Turn on a particular data cell.
 void vtkUniformGrid::UnBlankCell(vtkIdType cellId)
 {
-  vtkUnsignedCharArray* ghost = this->GetCellGhostArray();
-  if(!ghost)
+  vtkUnsignedCharArray* ghosts = this->GetCellGhostArray();
+  if(!ghosts)
     {
     return;
     }
-  ghost->SetValue(cellId, 0);
+  ghosts->SetValue(cellId, 0);
   assert(this->IsCellVisible(cellId));
 }
 
@@ -870,8 +861,8 @@ void vtkUniformGrid::SetCellGhostArray(vtkUnsignedCharArray *ghosts)
   else
     {
     this->GetCellData()->RemoveArray(vtkDataSetAttributes::GhostArrayName());
-    this->CellGhostArray=NULL;
     }
+   this->CellGhostArray=NULL;
 }
 
 //----------------------------------------------------------------------------
@@ -881,10 +872,7 @@ unsigned char vtkUniformGrid::IsPointVisible(vtkIdType pointId)
     {
     return 0;
     }
-  else
-    {
-    return 1;
-    }
+  return 1;
 }
 
 //----------------------------------------------------------------------------

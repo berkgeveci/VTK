@@ -219,7 +219,7 @@ int vtkImageDataToUniformGrid::Process(
   vtkNew<vtkUnsignedCharArray> blankingArray;
   blankingArray->DeepCopy(inScalars);
 
-  if(this->Reverse)
+  if(!this->Reverse)
     {
     for(vtkIdType i=0;i<blankingArray->GetNumberOfTuples();i++)
       {
