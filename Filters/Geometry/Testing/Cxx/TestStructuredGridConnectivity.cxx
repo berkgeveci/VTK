@@ -361,9 +361,12 @@ int GetTotalNumberOfNodes( vtkMultiBlockDataSet *multiblock )
       vtkIdType pntIdx = 0;
       for( ; pntIdx < grid->GetNumberOfPoints(); ++pntIdx )
         {
-        if(grid->IsPointVisible(pntIdx))
+        unsigned char nodeProperty =
+            *(grid->GetPointGhostArray()->GetPointer( pntIdx ));
+        if( !vtkGhostArray::IsPropertySet(
+            nodeProperty,vtkGhostArray::IGNORE ) )
           {
-          numNodes++;
+          ++numNodes;
           }
         } // END for all nodes
       } // END if grid != NULL
@@ -392,7 +395,11 @@ int GetTotalNumberOfCells( vtkMultiBlockDataSet *multiblock )
       vtkIdType cellIdx = 0;
       for( ; cellIdx < grid->GetNumberOfCells(); ++cellIdx )
         {
-        if(grid->IsCellVisible(cellIdx))
+        unsigned char cellProperty =
+            *(grid->GetCellGhostArray()->GetPointer( cellIdx ) );
+        if( !vtkGhostArray::IsPropertySet(
+            cellProperty,vtkGhostArray::DUPLICATE) )
+
           {
           ++numCells;
           }
@@ -516,6 +523,10 @@ vtkMultiBlockDataSet* GetGhostedDataSet(
     ghostedGrid->GetCellData()->DeepCopy(
         SGC->GetGhostedGridCellData(block) );
 
+    // Copy the ghost arrays
+    ghostedGrid->SetPointGhostArray(SGC->GetGhostedPointGhostArray(block));
+    ghostedGrid->SetCellGhostArray(SGC->GetGhostedCellGhostArray(block));
+
     output->SetBlock( block, ghostedGrid );
     ghostedGrid->Delete();
     } // END for all blocks
@@ -525,7 +536,7 @@ vtkMultiBlockDataSet* GetGhostedDataSet(
 
 //------------------------------------------------------------------------------
 bool Check(
-    std::string name, const int val, const int expected, bool verbose=false )
+    std::string name, const int val, const int expected, bool verbose=true )
 {
   bool status = false;
 
@@ -604,9 +615,6 @@ int TestStructuredGridConnectivity_internal( int argc, char *argv[] )
       if( !Check( "NODES", NumNodes, expected ) )
         {
         ++rc;
-        mbds->Delete();
-        gridConnectivity->Delete();
-        return( rc );
         }
 
       // STEP 6: Compute total number of cells & compare to expected
@@ -614,6 +622,10 @@ int TestStructuredGridConnectivity_internal( int argc, char *argv[] )
       if( !Check( "CELLS", NumCells, expectedCells ) )
         {
         ++rc;
+        }
+
+      if(rc != 0)
+        {
         mbds->Delete();
         gridConnectivity->Delete();
         return( rc );
@@ -628,24 +640,21 @@ int TestStructuredGridConnectivity_internal( int argc, char *argv[] )
       if( !Check( "GHOSTED_NODES", GhostedNumNodes, expected ) )
         {
         ++rc;
-        gmbds->Delete();
-        mbds->Delete();
-        gridConnectivity->Delete();
-        return( rc );
         }
       if( !Check( "GHOSTED_CELLS", GhostedNumCells, expectedCells ) )
         {
         ++rc;
-        gmbds->Delete();
-        mbds->Delete();
-        gridConnectivity->Delete();
-        return( rc );
         }
 
       // STEP 9: De-allocated data-structures
       gmbds->Delete();
       mbds->Delete();
       gridConnectivity->Delete();
+
+      if(rc != 0)
+        {
+        return rc;
+        }
       }// END for all ghost layer tests
     } // END for all numPartition tests
 
