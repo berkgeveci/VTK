@@ -121,12 +121,6 @@ def _matrix_math_filter (narray, operation) :
        raise RuntimeError, 'Unknown quality measure ['+operation+']'+\
                            'Supported are [Determinant, Inverse, Eigenvalue, Eigenvector]'
 
-    dataset = narray.DataSet
-    if not dataset : raise RuntimeError, 'narray is not associated with a dataset.'
-
-    if dataset_adapter.ArrayAssociation.FIELD == narray.Association :
-       raise RuntimeError, 'Unknown data association. Data should be associated with points or cells.'
-
     if narray.ndim != 3 :
        raise RuntimeError, operation+' only works for an array of matrices(3D array).'\
                            'Input shape ' + narray.shape
@@ -143,12 +137,12 @@ def _matrix_math_filter (narray, operation) :
     ncols = narray.shape[1] * narray.shape[2]
     narray = narray.reshape(nrows, ncols)
 
-    ds = dataset.NewInstance()
-    ds.UnRegister(None)
-    ds.ShallowCopy(dataset.VTKObject)
+    ds = vtk.vtkImageData()
+    ds.SetDimensions(nrows, 1, 1)
 
     varray = numpy_support.numpy_to_vtk(narray)
     varray.SetName('tensors')
+    ds.GetPointData().SetTensors(varray)
 
     filter = vtk.vtkMatrixMathFilter()
 
@@ -157,26 +151,17 @@ def _matrix_math_filter (narray, operation) :
     elif operation == 'Eigenvalue'   : filter.SetOperationToEigenvalue()
     elif operation == 'Eigenvector'  : filter.SetOperationToEigenvector()
 
-    if dataset_adapter.ArrayAssociation.POINT == narray.Association :
-       ds.GetPointData().SetTensors(varray)
-       # filter.SetQualityTypeToPointQuality()
-    elif dataset_adapter.ArrayAssociation.CELL == narray.Association :
-       ds.GetCellData().SetTensors(varray)
-       # filter.SetQualityTypeToCellQuality()
-
     filter.SetInputData(ds)
     filter.Update()
 
-    if dataset_adapter.ArrayAssociation.POINT == narray.Association :
-       varray = filter.GetOutput().GetPointData().GetArray(operation)
-    elif dataset_adapter.ArrayAssociation.CELL == narray.Association :
-       varray = filter.GetOutput().GetCellData().GetArray(operation)
+    varray = filter.GetOutput().GetPointData().GetArray(operation)
 
-    ans = dataset_adapter.vtkDataArrayToVTKArray(varray, dataset)
+    ans = dataset_adapter.vtkDataArrayToVTKArray(varray)
 
     # The association information has been lost over the vtk filter
     # we must reconstruct it otherwise lower pipeline will be broken.
     ans.Association = narray.Association
+    ans.DataSet = narray.DataSet
 
     return ans
 
@@ -412,48 +397,6 @@ def log10 (narray) :
     "Returns the base 10 logarithm of an array of scalars/vectors/tensors."
     return numpy.log10(narray)
 
-# Functions marked with this decorator will check all leaves of a composite
-# dataset.
-def composite_function(func):
-    def new_function(array):
-        if hasattr(array, 'composite_iterator'):
-            return func(array.composite_iterator)
-        else:
-            return func(array)
-    new_function.__name__ = func.__name__
-    return new_function
-
-# This decorator will strip single-entry sequences from returned values.
-def strip_sequence_from_result(func):
-    def new_function(array):
-        res = func(array)
-        try:
-            while len(res) == 1:
-                # matrices have weird slice behaviors, slice them as a ndarray.
-                if isinstance(res, numpy.matrix):
-                    res = res.view(numpy.ndarray)
-                res = res[0]
-        except TypeError:
-            pass
-        return res
-    new_function.__name__ = func.__name__
-    return new_function
-
-# This decorator fallsback to the provided builtin function when the input is
-# not an instance of numpy ndarray.
-def use_builtin_function_if_not_numpy_array(builtin_func):
-    def inner_decorator(func):
-        def new_function(array):
-            if isinstance(array, numpy.ndarray):
-                return func(array)
-            return builtin_func(array)
-        new_function.__name__ = func.__name__
-        return new_function
-    return inner_decorator
-
-@strip_sequence_from_result
-@composite_function
-@use_builtin_function_if_not_numpy_array(max)
 def max (narray):
     "Returns the maximum value of an array of scalars/vectors/tensors."
     ans = numpy.max(numpy.array(narray), axis=0)
@@ -474,18 +417,12 @@ def mean(iter):
     l = len(iter)
     return s / l
 
-@strip_sequence_from_result
-@composite_function
-@use_builtin_function_if_not_numpy_array(mean)
 def mean (narray) :
     "Returns the mean value of an array of scalars/vectors/tensors."
     ans = numpy.mean(numpy.array(narray), axis=0)
     if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
 
-@strip_sequence_from_result
-@composite_function
-@use_builtin_function_if_not_numpy_array(min)
 def min (narray):
     "Returns the min value of an array of scalars/vectors/tensors."
     ans = numpy.min(numpy.array(narray), axis=0)
@@ -498,7 +435,7 @@ def min_angle (dataset) :
 
 def norm (a) :
     "Returns the normalized values of an array of scalars/vectors."
-    return a/mag(a)
+    return a/mag(a).reshape((a.shape[0], 1))
 
 def shear (dataset) :
     "Returns the shear of each cell in a dataset."
@@ -609,3 +546,11 @@ def vertex_normal (dataset) :
     ans.Association = dataset_adapter.ArrayAssociation.POINT
 
     return ans
+
+def make_vector(ax, ay, az=None):
+    if len(ax.shape) != 1 or len(ay.shape) != 1 or (az != None and len(az.shape) != 1):
+        raise ValueError, "Can only merge 1D arrays"
+
+    if az is None:
+        az = numpy.zeros(ax.shape)
+    return numpy.vstack([ax, ay, az]).transpose()

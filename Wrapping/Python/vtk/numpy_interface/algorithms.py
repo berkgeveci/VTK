@@ -1,5 +1,6 @@
 import dataset_adapter as dsa
 import internal_algorithms as algs
+import itertools
 import numpy
 
 def apply_func2(func, array, args):
@@ -91,7 +92,7 @@ def make_dsfunc2(dsfunc):
 
 def sum(array, axis=None):
     if type(array) == dsa.VTKCompositeDataArray:
-        if axis == None or axis == 0:
+        if axis is None or axis == 0:
             res = None
             arrays = array.Arrays
             for a in arrays:
@@ -109,7 +110,7 @@ def sum(array, axis=None):
 def max(array, axis=None):
     if type(array) == dsa.VTKCompositeDataArray:
         l = apply_func2(numpy.max, array, (axis,))
-        if axis == None or axis == 0:
+        if axis is None or axis == 0:
             # Reduce over the list
             return numpy.max(l, axis=0)
         else:
@@ -120,7 +121,7 @@ def max(array, axis=None):
 def min(array, axis=None):
     if type(array) == dsa.VTKCompositeDataArray:
         l = apply_func2(numpy.min, array, (axis,))
-        if axis == None or axis == 0:
+        if axis is None or axis == 0:
             # Reduce over the list
             return numpy.min(l, axis=0)
         else:
@@ -139,7 +140,7 @@ def mean(array, axis=None):
 
 def var(array, axis=None):
     if type(array) == dsa.VTKCompositeDataArray:
-        if axis == None:
+        if axis is None:
             tmp = array - mean(array)
             return sum(tmp*tmp) / array.size
         elif axis == 0:
@@ -162,7 +163,7 @@ def shape(array):
         shp = None
         for a in array.Arrays:
             if a != None:
-                if shp == None:
+                if shp is None:
                     shp = list(a.shape)
                 else:
                     tmp = a.shape
@@ -175,6 +176,22 @@ def shape(array):
         return shp
     else:
         return numpy.shape(array)
+
+def make_vector(arrayx, arrayy, arrayz=None):
+    res = []
+    if arrayz is None:
+        for ax, ay in itertools.izip(arrayx.Arrays, arrayy.Arrays):
+            if ax != None and ay != None:
+                res.append(algs.make_vector(ax, ay))
+            else:
+                res.append(None)
+    else:
+        for ax, ay, az in itertools.izip(arrayx.Arrays, arrayy.Arrays, arrayz.Arrays):
+            if ax != None and ay != None and az != None:
+                res.append(algs.make_vector(ax, ay, az))
+            else:
+                res.append(None)
+    return dsa.VTKCompositeDataArray(res)
 
 sqrt = make_ufunc(numpy.sqrt)
 exp = make_ufunc(numpy.exp)
