@@ -2,6 +2,10 @@ import dataset_adapter as dsa
 import internal_algorithms as algs
 import itertools
 import numpy
+try:
+    from vtk.vtkParallelCore import vtkMultiProcessController
+except ImportError:
+    vtkMultiProcessController = None
 
 def apply_func2(func, array, args):
     res = []
@@ -90,44 +94,134 @@ def make_dsfunc2(dsfunc):
             return dsfunc(ds)
     return new_dsfunc2
 
-def sum(array, axis=None):
+def global_func(impl, axis=None, controller=None):
+    res = None
     if type(array) == dsa.VTKCompositeDataArray:
         if axis is None or axis == 0:
-            res = None
+            res = impl.serial_composite(array, axis)
+        else:
+            res = apply_func(impl.op, array, (axis,))
+    else:
+        res = impl.op(array, axis).astype(numpy.float64)
+
+    if axis is None or axis == 0:
+        if controller == None and vtkMultiProcessController != None:
+            controller = vtkMultiProcessController.GetGlobalController()
+        if controller:
+            from mpi4py import MPI
+
+            ntuples = numpy.int32(0)
+            if type(res) == dsa.VTKArray:
+                shp = shape(res)
+                if len(shp) == 0:
+                    ntuples = numpy.int32(1)
+                else:
+                    ntuples = numpy.int32(res.shape[0])
+            max_tuples = numpy.array(ntuples, dtype=numpy.int32)
+            MPI.COMM_WORLD.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
+
+            if res == None:
+                if max_tuples == 1:
+                    # Weird trick to make the array look like a scalar
+                    max_tuples = ()
+                res = impl.default(max_tuples)
+
+            res_recv = numpy.array(res)
+            MPI.COMM_WORLD.Allreduce([res, MPI.DOUBLE], [res_recv, MPI.DOUBLE], impl.op)
+            res = res_recv
+
+    return res
+
+def sum(array, axis=None, controller=None):
+    res = None
+    if type(array) == dsa.VTKCompositeDataArray:
+        if axis is None or axis == 0:
             arrays = array.Arrays
             for a in arrays:
                 if a != None:
                     if res == None:
-                        res = numpy.sum(a, axis)
+                        res = numpy.sum(a, axis).astype(numpy.float64)
                     else:
                         res += numpy.sum(a, axis)
-            return res
         else:
-            return apply_func(numpy.sum, array, (axis,))
+            res = apply_func(numpy.sum, array, (axis,))
     else:
-        return numpy.sum(array, axis)
+        res = numpy.sum(array, axis).astype(numpy.float64)
 
-def max(array, axis=None):
+    if axis is None or axis == 0:
+        if controller == None and vtkMultiProcessController != None:
+            controller = vtkMultiProcessController.GetGlobalController()
+        if controller:
+            from mpi4py import MPI
+
+            ntuples = numpy.int32(0)
+            if type(res) == dsa.VTKArray:
+                shp = shape(res)
+                if len(shp) == 0:
+                    ntuples = numpy.int32(1)
+                else:
+                    ntuples = numpy.int32(res.shape[0])
+            max_tuples = numpy.array(ntuples, dtype=numpy.int32)
+            MPI.COMM_WORLD.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
+
+            if res == None:
+                if max_tuples == 1:
+                    # Weird trick to make the array look like a scalar
+                    max_tuples = ()
+                res = numpy.zeros(max_tuples, dtype=numpy.float64)
+
+            res_recv = numpy.array(res)
+            MPI.COMM_WORLD.Allreduce([res, MPI.DOUBLE], [res_recv, MPI.DOUBLE], MPI.SUM)
+            res = res_recv
+
+    return res
+
+def max(array, axis=None, controller=None):
+    M = None
     if type(array) == dsa.VTKCompositeDataArray:
-        l = apply_func2(numpy.max, array, (axis,))
+        M = apply_func2(numpy.max, array, (axis,))
         if axis is None or axis == 0:
             # Reduce over the list
-            return numpy.max(l, axis=0)
-        else:
-            return l
+            M = numpy.max(M, axis=0).astype(numpy.float64)
     else:
-        return numpy.max(array)
+        M = numpy.max(array, axis=axis).astype(numpy.float64)
 
-def min(array, axis=None):
+    if axis is None or axis == 0:
+        if controller == None and vtkMultiProcessController != None:
+            controller = vtkMultiProcessController.GetGlobalController()
+        if controller:
+            if M == None:
+                M = numpy.finfo(numpy.float64).min
+            from mpi4py import MPI
+            M_recv = numpy.array(M)
+            MPI.COMM_WORLD.Allreduce([M, MPI.DOUBLE], [M_recv, MPI.DOUBLE], MPI.MAX)
+            M = M_recv
+
+    return M
+
+
+def min(array, axis=None, controller=None):
+    M = None
     if type(array) == dsa.VTKCompositeDataArray:
-        l = apply_func2(numpy.min, array, (axis,))
+        M = apply_func2(numpy.min, array, (axis,))
         if axis is None or axis == 0:
             # Reduce over the list
-            return numpy.min(l, axis=0)
-        else:
-            return l
+            M = numpy.min(M, axis=0).astype(numpy.float64)
     else:
-        return numpy.max(array)
+        M = numpy.min(array, axis=axis).astype(numpy.float64)
+
+    if axis is None or axis == 0:
+        if controller == None and vtkMultiProcessController != None:
+            controller = vtkMultiProcessController.GetGlobalController()
+        if controller:
+            if M == None:
+                M = numpy.finfo(numpy.float64).max
+            from mpi4py import MPI
+            M_recv = numpy.array(M)
+            MPI.COMM_WORLD.Allreduce([M, MPI.DOUBLE], [M_recv, MPI.DOUBLE], MPI.MIN)
+            M = M_recv
+
+    return M
 
 def mean(array, axis=None):
     if type(array) == dsa.VTKCompositeDataArray:
