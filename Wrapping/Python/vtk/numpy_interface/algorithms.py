@@ -8,9 +8,11 @@ except ImportError:
     vtkMultiProcessController = None
 
 def apply_func2(func, array, args):
+    if array is None:
+        return None
     res = []
     for a in array.Arrays:
-        if a != None:
+        if a is not None:
             res.append(func(a, *args))
         else:
             res.append(None)
@@ -24,11 +26,13 @@ def make_ufunc2(ufunc):
         if type(array) == dsa.VTKCompositeDataArray:
             res = []
             for a in array.Arrays:
-                if a != None:
+                if a is not None:
                     res.append(ufunc(a))
                 else:
                     res.append(None)
             return res
+        elif array is None:
+            return None
         else:
             return ufunc(array)
     return new_ufunc2
@@ -38,11 +42,13 @@ def make_ufunc(ufunc):
         if type(array) == dsa.VTKCompositeDataArray:
             res = []
             for a in array.Arrays:
-                if a != None:
+                if a is not None:
                     res.append(ufunc(a))
                 else:
                     res.append(None)
             return dsa.VTKCompositeDataArray(res)
+        elif array is None:
+            return None
         else:
             return ufunc(array)
     return new_ufunc
@@ -52,7 +58,7 @@ def make_dfunc(dfunc):
         if type(array1) == dsa.VTKCompositeDataArray and type(val2) == dsa.VTKCompositeDataArray:
             res = []
             for a1, a2 in itertools.izip(array1.Arrays, val2.Arrays):
-                if a1 != None and a2 != None:
+                if a1 is not None and a2 is not None:
                     res.append(dfunc(a1, a2))
                 else:
                     res.append(None)
@@ -60,7 +66,7 @@ def make_dfunc(dfunc):
         elif type(array1) == dsa.VTKCompositeDataArray:
             res = []
             for a in array1.Arrays :
-                if a != None:
+                if a is not None:
                     res.append(dfunc(a, val2))
                 else:
                     res.append(None)
@@ -74,11 +80,13 @@ def make_dsfunc(dsfunc):
         if type(array) == dsa.VTKCompositeDataArray:
             res = []
             for a in array.Arrays:
-                if a != None:
+                if a is not None:
                     res.append(dsfunc(a, ds))
                 else:
                     res.append(None)
             return dsa.VTKCompositeDataArray(res)
+        elif array is None:
+            return None
         else:
             return dsfunc(array, ds)
     return new_dsfunc
@@ -100,19 +108,21 @@ def global_func(impl, array, axis, controller):
             res = impl.serial_composite(array, axis)
         else:
             res = apply_func(impl.op(), array, (axis,))
+    elif array is None:
+        res = None
     else:
         res = impl.op()(array, axis)
-        if res != None:
+        if res is not None:
             res = res.astype(numpy.float64)
 
     if axis is None or axis == 0:
-        if controller == None and vtkMultiProcessController != None:
+        if controller is None and vtkMultiProcessController is not None:
             controller = vtkMultiProcessController.GetGlobalController()
         if controller:
             from mpi4py import MPI
 
             ntuples = numpy.int32(0)
-            if type(res) == dsa.VTKArray:
+            if type(res) == dsa.VTKArray or type(res) == numpy.ndarray:
                 shp = shape(res)
                 if len(shp) == 0:
                     ntuples = numpy.int32(1)
@@ -123,7 +133,7 @@ def global_func(impl, array, axis, controller):
             max_tuples = numpy.array(ntuples, dtype=numpy.int32)
             MPI.COMM_WORLD.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
 
-            if res == None:
+            if res is None:
                 if max_tuples == 1:
                     # Weird trick to make the array look like a scalar
                     max_tuples = ()
@@ -148,8 +158,8 @@ def sum(array, axis=None, controller=None):
             res = None
             arrays = array.Arrays
             for a in arrays:
-                if a != None:
-                    if res == None:
+                if a is not None:
+                    if res is None:
                         res = numpy.sum(a, axis).astype(numpy.float64)
                     else:
                         res += numpy.sum(a, axis)
@@ -171,9 +181,13 @@ def max(array, axis=None, controller=None):
 
         def serial_composite(self, array, axis):
             res = apply_func2(numpy.max, array, (axis,))
-            if res == []:
+            clean_list = []
+            for a in res:
+                if a is not None:
+                    clean_list.append(a)
+            if clean_list is []:
                 return None
-            return numpy.max(res, axis=0).astype(numpy.float64)
+            return numpy.max(clean_list, axis=0).astype(numpy.float64)
 
         def default(self, max_tuples):
             return numpy.ones(max_tuples, dtype=numpy.float64) * numpy.finfo(numpy.float64).min
@@ -191,10 +205,10 @@ def min(array, axis=None, controller=None):
         M = numpy.min(array, axis=axis).astype(numpy.float64)
 
     if axis is None or axis == 0:
-        if controller == None and vtkMultiProcessController != None:
+        if controller is None and vtkMultiProcessController is not None:
             controller = vtkMultiProcessController.GetGlobalController()
         if controller:
-            if M == None:
+            if M is None:
                 M = numpy.finfo(numpy.float64).max
             from mpi4py import MPI
             M_recv = numpy.array(M)
@@ -205,7 +219,7 @@ def min(array, axis=None, controller=None):
 
 def mean(array, axis=None):
     if type(array) == dsa.VTKCompositeDataArray:
-        if axis == None or axis == 0:
+        if axis is None or axis == 0:
             return sum(array, axis) / array.size
         else:
             return apply_func(numpy.mean, array, (axis,))
@@ -236,7 +250,7 @@ def shape(array):
     if type(array) == dsa.VTKCompositeDataArray:
         shp = None
         for a in array.Arrays:
-            if a != None:
+            if a is not None:
                 if shp is None:
                     shp = list(a.shape)
                 else:
@@ -255,13 +269,13 @@ def make_vector(arrayx, arrayy, arrayz=None):
     res = []
     if arrayz is None:
         for ax, ay in itertools.izip(arrayx.Arrays, arrayy.Arrays):
-            if ax != None and ay != None:
+            if ax is not None and ay is not None:
                 res.append(algs.make_vector(ax, ay))
             else:
                 res.append(None)
     else:
         for ax, ay, az in itertools.izip(arrayx.Arrays, arrayy.Arrays, arrayz.Arrays):
-            if ax != None and ay != None and az != None:
+            if ax is not None and ay is not None and az is not None:
                 res.append(algs.make_vector(ax, ay, az))
             else:
                 res.append(None)
