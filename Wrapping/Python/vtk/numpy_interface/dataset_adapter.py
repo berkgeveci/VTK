@@ -119,6 +119,72 @@ class VTKArray(numpy.ndarray):
     def __pow__(self, other):
         return numpy.power(self, other)
 
+class VTKNoneArray():
+
+    def __metaclass__(name, parent, attr):
+        """Simplify the implementation of the numeric/logical sequence API."""
+        def add_op(attr_name, op):
+            """Create an attribute named attr_name that calls
+            _numeric_op(self, other, op)."""
+            def closure(self, other):
+                return VTKNoneArray._op(self, other, op)
+            closure.__name__ = attr_name
+            attr[attr_name] = closure
+
+        def add_default_reverse_op(op_name):
+            """Adds '__r[op_name]__' attribute that uses operator.[op_name]"""
+            add_op("__r%s__"%op_name, getattr(operator, op_name))
+
+        def add_default_op(op_name):
+            """Adds '__[op_name]__' attribute that uses operator.[op_name]"""
+            add_op("__%s__"%op_name, getattr(operator, op_name))
+
+        def add_default_ops(op_name):
+            """Call both add_default_numeric_op and add_default_reverse_numeric_op."""
+            add_default_op(op_name)
+            add_default_reverse_op(op_name)
+
+        add_default_ops("add")
+        add_default_ops("sub")
+        add_default_ops("mul")
+        add_default_ops("div")
+        add_default_ops("truediv")
+        add_default_ops("floordiv")
+        add_default_ops("mod")
+        add_default_ops("pow")
+        add_default_ops("lshift")
+        add_default_ops("rshift")
+        add_op("__and__", operator.and_)
+        add_op("__rand__", operator.and_)
+        add_default_ops("xor")
+        add_op("__or__", operator.or_)
+        add_op("__ror__", operator.or_)
+
+        add_default_op("lt")
+        add_default_op("le")
+        add_default_op("eq")
+        add_default_op("ne")
+        add_default_op("ge")
+        add_default_op("gt")
+        return type(name, parent, attr)
+
+    # def GetSize(self):
+    #     size = numpy.int64(0)
+    #     for a in self.Arrays:
+    #         try:
+    #             size += a.size
+    #         except AttributeError:
+    #             pass
+    #     return size
+
+    # size = property(GetSize)
+
+    def _op(self, other, op):
+        """Used to implement numpy-style numerical operations such as __add__,
+        __mul__, etc."""
+        return NoneArray
+
+NoneArray = VTKNoneArray()
 
 class VTKCompositeDataArray():
 
@@ -202,16 +268,16 @@ class VTKCompositeDataArray():
         res = []
         if type(index[0]) == VTKCompositeDataArray:
             for a, idx in itertools.izip(self.Arrays, index[0].Arrays):
-                if a != None:
+                if a is not NoneArray:
                     res.append(a.__getitem__((idx,)+index[1:]))
                 else:
-                    res.append(None)
+                    res.append(NoneArray)
         else:
             for a in self.Arrays:
-                if a != None:
+                if a is not NoneArray:
                     res.append(a.__getitem__(index))
                 else:
-                    res.append(None)
+                    res.append(NoneArray)
         return VTKCompositeDataArray(res)
 
     def _numeric_op(self, other, op):
@@ -220,16 +286,16 @@ class VTKCompositeDataArray():
         res = []
         if type(other) == VTKCompositeDataArray:
             for a1, a2 in itertools.izip(self.Arrays, other.Arrays):
-                if a1 != None and a2 != None:
+                if a1 is not NoneArray and a2 is not NoneArray:
                     res.append(op(a1,a2))
                 else:
-                    res.append(None)
+                    res.append(NoneArray)
         else:
             for a in self.Arrays:
-                if a != None:
+                if a is not NoneArray:
                     res.append(op(a, other))
                 else:
-                    res.append(None)
+                    res.append(NoneArray)
         return VTKCompositeDataArray(res)
 
     def _reverse_numeric_op(self, other, op):
@@ -238,16 +304,16 @@ class VTKCompositeDataArray():
         res = []
         if type(other) == VTKCompositeDataArray:
             for a1, a2 in itertools.izip(self.Arrays, other.Arrays):
-                if a1 != None and a2 != None:
+                if a1 is not NoneArray and a2 is notNoneArray:
                     res.append(op(a2,a1))
                 else:
-                    res.append(None)
+                    res.append(NoneArray)
         else:
             for a in self.Arrays:
-                if a != None:
+                if a is not NoneArray:
                     res.append(op(other, a))
                 else:
-                    res.append(None)
+                    res.append(NoneArray)
         return VTKCompositeDataArray(res)
 
     def __str__(self):
@@ -275,7 +341,7 @@ class DataSetAttributes(VTKObjectWrapper):
             vtkarray = self.VTKObject.GetAbstractArray(idx)
             if vtkarray:
                 return vtkarray
-            return None
+            return NoneArray
         array = vtkDataArrayToVTKArray(vtkarray, self.DataSet)
         array.Association = self.Association
         return array
@@ -405,7 +471,7 @@ class CompositeDataSetAttributes():
         else:
             arrayname = idx
         if arrayname not in self.ArrayNames:
-            return None
+            return NoneArray
         array = VTKCompositeDataArray()
         array.InitFromCompositeData(self.DataSet, arrayname)
         return array

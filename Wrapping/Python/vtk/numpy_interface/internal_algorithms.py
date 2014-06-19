@@ -276,61 +276,6 @@ def eigenvector (narray) :
     "Returns the eigenvector of an array of 2D square matrices."
     return _matrix_math_filter(narray, "Eigenvector")
 
-def global_max(narray):
-    "Returns the maximum value of an array of scalars/vectors/tensors among all process."
-    if len(narray) > 0:
-        M = max(narray).astype(numpy.float64)
-    else:
-        M = numpy.finfo(numpy.float64).min
-
-    # if vtkProcessModule.GetProcessModule().GetNumberOfLocalPartitions() > 1 :
-    #    from mpi4py import MPI
-    #    M_recv = numpy.array(M)
-    #    MPI.COMM_WORLD.Allreduce([M, MPI.DOUBLE], [M_recv, MPI.DOUBLE], MPI.MAX)
-    #    M = M_recv
-    return M
-
-def global_mean (narray) :
-    "Returns the mean value of an array of scalars/vectors/tensors among all process."
-    # For some reason, Allreduce on MPI.INT does not return the correct value.
-    # I have to convert it into a double array to get the correct results.
-    dim = narray.shape[1]
-    if len(narray.shape) == 3 : dim = narray.shape[1] * narray.shape[2]
-
-    N = numpy.empty(dim).astype(numpy.float64)
-    N.fill(narray.shape[0])
-
-    S = narray.sum(0).astype(numpy.float64)
-    if len(S.shape) == 2 and S.shape[0] == 3 and S.shape[1] == 3:
-       S = numpy.reshape(S, 9)
-    elif len(S.shape) == 3 and S.shape[0] == 1 and S.shape[1] == 3 and S.shape[2] == 3:
-       S = numpy.reshape(S, 9)
-
-    # if vtkProcessModule.GetProcessModule().GetNumberOfLocalPartitions() > 1 :
-    #    from mpi4py import MPI
-    #    comm = MPI.COMM_WORLD
-    #    S_recv = numpy.array(S)
-    #    N_recv = numpy.array(N)
-    #    comm.Allreduce([S, MPI.DOUBLE], [S_recv, MPI.DOUBLE],MPI.SUM)
-    #    comm.Allreduce([N, MPI.DOUBLE], [N_recv, MPI.DOUBLE],MPI.SUM)
-    #    S = S_recv
-    #    N = N_recv
-    return S / N
-
-def global_min(narray):
-    "Returns the minimum value of an array of scalars/vectors/tensors among all process."
-    if len(narray) > 0:
-        m = min(narray).astype(numpy.float64)
-    else:
-        m = numpy.finfo(numpy.float64).max
-
-    # if vtkProcessModule.GetProcessModule().GetNumberOfLocalPartitions() > 1 :
-    #    from mpi4py import MPI
-    #    m_recv = numpy.array(m)
-    #    MPI.COMM_WORLD.Allreduce([m, MPI.DOUBLE], [m_recv, MPI.DOUBLE], MPI.MIN)
-    #    m = m_recv
-    return m
-
 def gradient(narray, dataset=None):
     "Returns the gradient of an array of scalars/vectors."
     if not dataset: dataset = narray.DataSet
@@ -397,10 +342,12 @@ def log10 (narray) :
     "Returns the base 10 logarithm of an array of scalars/vectors/tensors."
     return numpy.log10(narray)
 
-def max (narray):
+def max (narray, axis=None):
     "Returns the maximum value of an array of scalars/vectors/tensors."
-    ans = numpy.max(numpy.array(narray), axis=0)
-    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
+    if narray is dataset_adapter.NoneArray:
+      return dataset_adapter.NoneArray
+    ans = numpy.max(narray, axis)
+#    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
 
 def max_angle (dataset) :
@@ -423,10 +370,12 @@ def mean (narray) :
     if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
 
-def min (narray):
+def min (narray, axis=None):
     "Returns the min value of an array of scalars/vectors/tensors."
-    ans = numpy.min(numpy.array(narray), axis=0)
-    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
+    if narray is dataset_adapter.NoneArray:
+      return dataset_adapter.NoneArray
+    ans = numpy.min(numpy.array(narray), axis)
+#    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
 
 def min_angle (dataset) :
@@ -469,6 +418,12 @@ def strain (narray, dataset=None) :
     ans.Association = narray.Association
 
     return ans
+
+def sum (narray, axis=None):
+    "Returns the min value of an array of scalars/vectors/tensors."
+    if narray is dataset_adapter.NoneArray:
+      return dataset_adapter.NoneArray
+    return numpy.sum(narray, axis)
 
 def surface_normal (dataset) :
     "Returns the surface normal of each cell in a dataset."
