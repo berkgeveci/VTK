@@ -94,15 +94,16 @@ def make_dsfunc2(dsfunc):
             return dsfunc(ds)
     return new_dsfunc2
 
-def global_func(impl, axis=None, controller=None):
-    res = None
+def global_func(impl, array, axis, controller):
     if type(array) == dsa.VTKCompositeDataArray:
         if axis is None or axis == 0:
             res = impl.serial_composite(array, axis)
         else:
-            res = apply_func(impl.op, array, (axis,))
+            res = apply_func(impl.op(), array, (axis,))
     else:
-        res = impl.op(array, axis).astype(numpy.float64)
+        res = impl.op()(array, axis)
+        if res != None:
+            res = res.astype(numpy.float64)
 
     if axis is None or axis == 0:
         if controller == None and vtkMultiProcessController != None:
@@ -117,6 +118,8 @@ def global_func(impl, axis=None, controller=None):
                     ntuples = numpy.int32(1)
                 else:
                     ntuples = numpy.int32(res.shape[0])
+            elif type(res) == numpy.float64:
+                ntuples = numpy.int32(1)
             max_tuples = numpy.array(ntuples, dtype=numpy.int32)
             MPI.COMM_WORLD.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
 
@@ -127,15 +130,22 @@ def global_func(impl, axis=None, controller=None):
                 res = impl.default(max_tuples)
 
             res_recv = numpy.array(res)
-            MPI.COMM_WORLD.Allreduce([res, MPI.DOUBLE], [res_recv, MPI.DOUBLE], impl.op)
+            MPI.COMM_WORLD.Allreduce([res, MPI.DOUBLE], [res_recv, MPI.DOUBLE], impl.mpi_op())
             res = res_recv
 
     return res
 
 def sum(array, axis=None, controller=None):
-    res = None
-    if type(array) == dsa.VTKCompositeDataArray:
-        if axis is None or axis == 0:
+    class SumImpl:
+        def op(self):
+            return numpy.sum
+
+        def mpi_op(self):
+            from mpi4py import MPI
+            return MPI.SUM
+
+        def serial_composite(self, array, axis):
+            res = None
             arrays = array.Arrays
             for a in arrays:
                 if a != None:
@@ -143,62 +153,32 @@ def sum(array, axis=None, controller=None):
                         res = numpy.sum(a, axis).astype(numpy.float64)
                     else:
                         res += numpy.sum(a, axis)
-        else:
-            res = apply_func(numpy.sum, array, (axis,))
-    else:
-        res = numpy.sum(array, axis).astype(numpy.float64)
+            return res
 
-    if axis is None or axis == 0:
-        if controller == None and vtkMultiProcessController != None:
-            controller = vtkMultiProcessController.GetGlobalController()
-        if controller:
-            from mpi4py import MPI
+        def default(self, max_tuples):
+            return numpy.zeros(max_tuples, dtype=numpy.float64)
 
-            ntuples = numpy.int32(0)
-            if type(res) == dsa.VTKArray:
-                shp = shape(res)
-                if len(shp) == 0:
-                    ntuples = numpy.int32(1)
-                else:
-                    ntuples = numpy.int32(res.shape[0])
-            max_tuples = numpy.array(ntuples, dtype=numpy.int32)
-            MPI.COMM_WORLD.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
-
-            if res == None:
-                if max_tuples == 1:
-                    # Weird trick to make the array look like a scalar
-                    max_tuples = ()
-                res = numpy.zeros(max_tuples, dtype=numpy.float64)
-
-            res_recv = numpy.array(res)
-            MPI.COMM_WORLD.Allreduce([res, MPI.DOUBLE], [res_recv, MPI.DOUBLE], MPI.SUM)
-            res = res_recv
-
-    return res
+    return global_func(SumImpl(), array, axis, controller)
 
 def max(array, axis=None, controller=None):
-    M = None
-    if type(array) == dsa.VTKCompositeDataArray:
-        M = apply_func2(numpy.max, array, (axis,))
-        if axis is None or axis == 0:
-            # Reduce over the list
-            M = numpy.max(M, axis=0).astype(numpy.float64)
-    else:
-        M = numpy.max(array, axis=axis).astype(numpy.float64)
+    class MaxImpl:
+        def op(self):
+            return numpy.max
 
-    if axis is None or axis == 0:
-        if controller == None and vtkMultiProcessController != None:
-            controller = vtkMultiProcessController.GetGlobalController()
-        if controller:
-            if M == None:
-                M = numpy.finfo(numpy.float64).min
+        def mpi_op(self):
             from mpi4py import MPI
-            M_recv = numpy.array(M)
-            MPI.COMM_WORLD.Allreduce([M, MPI.DOUBLE], [M_recv, MPI.DOUBLE], MPI.MAX)
-            M = M_recv
+            return MPI.MAX
 
-    return M
+        def serial_composite(self, array, axis):
+            res = apply_func2(numpy.max, array, (axis,))
+            if res == []:
+                return None
+            return numpy.max(res, axis=0).astype(numpy.float64)
 
+        def default(self, max_tuples):
+            return numpy.ones(max_tuples, dtype=numpy.float64) * numpy.finfo(numpy.float64).min
+
+    return global_func(MaxImpl(), array, axis, controller)
 
 def min(array, axis=None, controller=None):
     M = None
