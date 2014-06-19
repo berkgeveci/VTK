@@ -195,27 +195,28 @@ def max(array, axis=None, controller=None):
     return global_func(MaxImpl(), array, axis, controller)
 
 def min(array, axis=None, controller=None):
-    M = None
-    if type(array) == dsa.VTKCompositeDataArray:
-        M = apply_func2(numpy.min, array, (axis,))
-        if axis is None or axis == 0:
-            # Reduce over the list
-            M = numpy.min(M, axis=0).astype(numpy.float64)
-    else:
-        M = numpy.min(array, axis=axis).astype(numpy.float64)
+    class MinImpl:
+        def op(self):
+            return numpy.min
 
-    if axis is None or axis == 0:
-        if controller is None and vtkMultiProcessController is not None:
-            controller = vtkMultiProcessController.GetGlobalController()
-        if controller:
-            if M is None:
-                M = numpy.finfo(numpy.float64).max
+        def mpi_op(self):
             from mpi4py import MPI
-            M_recv = numpy.array(M)
-            MPI.COMM_WORLD.Allreduce([M, MPI.DOUBLE], [M_recv, MPI.DOUBLE], MPI.MIN)
-            M = M_recv
+            return MPI.MIN
 
-    return M
+        def serial_composite(self, array, axis):
+            res = apply_func2(numpy.min, array, (axis,))
+            clean_list = []
+            for a in res:
+                if a is not None:
+                    clean_list.append(a)
+            if clean_list is []:
+                return None
+            return numpy.min(clean_list, axis=0).astype(numpy.float64)
+
+        def default(self, max_tuples):
+            return numpy.ones(max_tuples, dtype=numpy.float64) * numpy.finfo(numpy.float64).max
+
+    return global_func(MinImpl(), array, axis, controller)
 
 def mean(array, axis=None):
     if type(array) == dsa.VTKCompositeDataArray:
