@@ -97,6 +97,10 @@ MPI.COMM_WORLD.Allreduce([npts, MPI.INT], [total_npts, MPI.INT], MPI.SUM)
 # Test simple distributed data.
 testArrays(rtData, rtData2, grad, grad2, total_npts)
 
+# Check that we can disable parallelism by using a dummy controller
+# even when a global controller is set
+assert algs.sum(rtData / rtData, controller=vtk.vtkDummyController()) != total_npts
+
 # Test where arrays are NoneArray on one of the ranks.
 if size > 1:
     if rank == 0:

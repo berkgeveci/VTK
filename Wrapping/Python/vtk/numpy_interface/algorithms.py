@@ -108,7 +108,7 @@ def global_func(impl, array, axis, controller):
     if axis is None or axis == 0:
         if controller is None and vtkMultiProcessController is not None:
             controller = vtkMultiProcessController.GetGlobalController()
-        if controller:
+        if controller and controller.IsA("vtkMPIController"):
             from mpi4py import MPI
             comm = vtkMPI4PyCommunicator.ConvertToPython(controller.GetCommunicator())
 
@@ -246,7 +246,7 @@ def _array_count(array, axis, controller):
     if controller is None and vtkMultiProcessController is not None:
         controller = vtkMultiProcessController.GetGlobalController()
 
-    if controller:
+    if controller and controller.IsA("vtkMPIController"):
         from mpi4py import MPI
         comm = vtkMPI4PyCommunicator.ConvertToPython(controller.GetCommunicator())
 
