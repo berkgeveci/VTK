@@ -244,19 +244,6 @@ def var(array, axis=None, controller=None):
         else:
             return algs.var(array, axis)
 
-    # if type(array) == dsa.VTKCompositeDataArray:
-    #     if axis is None:
-    #         tmp = array - mean(array)
-    #         return sum(tmp*tmp) / array.size
-    #     elif axis == 0:
-    #         mn = mean(array, axis=0)
-    #         tmp = array - mn
-    #         return sum(tmp*tmp, axis=0) / shape(array)[0]
-    #     else:
-    #         return apply_func(numpy.var, array, (axis,))
-    # else:
-    #     return numpy.var(array)
-
 def std(array, axis=None, controller=None):
     return sqrt(var(array, axis, controller))
 
