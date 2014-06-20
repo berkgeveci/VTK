@@ -131,6 +131,9 @@ assert algs.cos(na) is na
 
 # Various numerical ops implemented in VTK
 assert algs.gradient(na) is na
+assert algs.cross(na, na) is na
+assert algs.cross(v.Arrays[0], na) is na
+assert algs.cross(na, v.Arrays[0]) is na
 
 assert algs.make_vector(na, g[:,0], elev) is na
 
@@ -151,6 +154,9 @@ assert algs.cos(na2).Arrays[1] is na
 
 # Various numerical ops implemented in VTK
 assert algs.gradient(na2).Arrays[1] is na
+assert algs.cross(na2, na2).Arrays[1] is na
+assert algs.cross(v, na2).Arrays[1] is na
+assert algs.cross(na2, v).Arrays[1] is na
 
 assert algs.make_vector(na2[:, 0], elev, elev).Arrays[1] is na
 assert algs.make_vector(elev, elev, na2[:, 0]).Arrays[1] is na

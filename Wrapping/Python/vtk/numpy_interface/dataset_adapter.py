@@ -7,6 +7,11 @@ sure that it is installed properly.")
 import itertools
 import operator
 from vtk.util import numpy_support
+import weakref
+
+# remove this after debugging
+import vtk
+timer = vtk.vtkTimerLog()
 
 class ArrayAssociation :
     """Easy access to vtkDataObject.AttributeTypes"""
@@ -261,9 +266,12 @@ class VTKCompositeDataArray():
         self.Arrays = arrays
 
     def InitFromCompositeData(self, composite_data, array_name):
+        timer.StartTimer()
         self.Arrays = []
         for ds in composite_data:
             self.Arrays.append(ds.PointData[array_name])
+        timer.StopTimer()
+        print "init from composite:", timer.GetElapsedTime()
 
     def __getitem__(self, index):
         res = []
@@ -431,7 +439,10 @@ class CompositeDataSetAttributes():
         # build the set of arrays available in the composite dataset. Since
         # composite datasets can have partial arrays, we need to iterate over
         # all non-null blocks in the dataset.
+        timer.StartTimer()
         self.__determine_arraynames()
+        timer.StopTimer()
+        print "determine array names: ", timer.GetElapsedTime()
 
     def __determine_arraynames(self):
         array_set = set()

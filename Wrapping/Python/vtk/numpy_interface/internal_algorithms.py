@@ -1,4 +1,4 @@
-import dataset_adapter
+import dataset_adapter as dsa
 import numpy
 from vtk.util import numpy_support
 import vtk
@@ -31,16 +31,16 @@ def _cell_derivatives (narray, dataset, attribute_type, filter):
     ds.UnRegister(None)
     ds.CopyStructure(dataset.VTKObject)
 
-    if dataset_adapter.ArrayAssociation.FIELD == narray.Association :
+    if dsa.ArrayAssociation.FIELD == narray.Association :
        raise RuntimeError, 'Unknown data association. Data should be associated with points or cells.'
 
-    if dataset_adapter.ArrayAssociation.POINT == narray.Association :
+    if dsa.ArrayAssociation.POINT == narray.Association :
        # Work on point data
        if narray.shape[0] != dataset.GetNumberOfPoints() :
           raise RuntimeError, 'The number of points does not match the number of tuples in the array'
        if attribute_type == 'scalars': ds.GetPointData().SetScalars(varray)
        else : ds.GetPointData().SetVectors(varray)
-    elif dataset_adapter.ArrayAssociation.CELL == narray.Association :
+    elif dsa.ArrayAssociation.CELL == narray.Association :
        # Work on cell data
        if narray.shape[0] != dataset.GetNumberOfCells() :
           raise RuntimeError, 'The number of does not match the number of tuples in the array'
@@ -67,14 +67,14 @@ def _cell_derivatives (narray, dataset, attribute_type, filter):
 
     filter.SetInputData(ds)
 
-    if dataset_adapter.ArrayAssociation.POINT == narray.Association :
+    if dsa.ArrayAssociation.POINT == narray.Association :
        # Since the data is associated with cell and the query is on points
        # we have to convert to point data before returning
        c2p = vtk.vtkCellDataToPointData()
        c2p.SetInputConnection(filter.GetOutputPort())
        c2p.Update()
        return c2p.GetOutput().GetPointData()
-    elif dataset_adapter.ArrayAssociation.CELL == narray.Association :
+    elif dsa.ArrayAssociation.CELL == narray.Association :
        filter.Update()
        return filter.GetOutput().GetCellData()
     else :
@@ -108,11 +108,11 @@ def _cell_quality (dataset, quality) :
     filter.Update()
 
     varray = filter.GetOutput().GetCellData().GetArray("CellQuality")
-    ans = dataset_adapter.vtkDataArrayToVTKArray(varray, dataset)
+    ans = dsa.vtkDataArrayToVTKArray(varray, dataset)
 
     # The association information has been lost over the vtk filter
     # we must reconstruct it otherwise lower pipeline will be broken.
-    ans.Association = dataset_adapter.ArrayAssociation.CELL
+    ans.Association = dsa.ArrayAssociation.CELL
 
     return ans
 
@@ -156,7 +156,7 @@ def _matrix_math_filter (narray, operation) :
 
     varray = filter.GetOutput().GetPointData().GetArray(operation)
 
-    ans = dataset_adapter.vtkDataArrayToVTKArray(varray)
+    ans = dsa.vtkDataArrayToVTKArray(varray)
 
     # The association information has been lost over the vtk filter
     # we must reconstruct it otherwise lower pipeline will be broken.
@@ -172,8 +172,8 @@ def abs (narray) :
 
 def all (narray, axis=None):
     "Returns the min value of an array of scalars/vectors/tensors."
-    if narray is dataset_adapter.NoneArray:
-      return dataset_adapter.NoneArray
+    if narray is dsa.NoneArray:
+      return dsa.NoneArray
     ans = numpy.all(numpy.array(narray), axis)
     return ans
 
@@ -195,6 +195,9 @@ def condition (dataset) :
 
 def cross (x, y) :
     "Return the cross product for two 3D vectors from two arrays of 3D vectors."
+    if x is dsa.NoneArray or y is dsa.NoneArray:
+      return dsa.NoneArray
+
     if x.ndim != y.ndim or x.shape != y.shape:
        raise RuntimeError, 'Both operands must have same dimension and shape.'\
                            'Input shapes ' + x.shape + ' and ' + y.shape
@@ -225,12 +228,12 @@ def curl (narray, dataset=None):
     cd = vtk.vtkCellDerivatives()
     cd.SetVectorModeToComputeVorticity()
 
-    dsa = _cell_derivatives(narray, dataset, 'vectors', cd)
+    res = _cell_derivatives(narray, dataset, 'vectors', cd)
 
-    retVal = dsa.GetVectors()
+    retVal = res.GetVectors()
     retVal.SetName("vorticity")
 
-    ans = dataset_adapter.vtkDataArrayToVTKArray(retVal, dataset)
+    ans = dsa.vtkDataArrayToVTKArray(retVal, dataset)
 
     # The association information has been lost over the vtk filter
     # we must reconstruct it otherwise lower pipeline will be broken.
@@ -250,7 +253,7 @@ def divergence (narray, dataset=None):
     g = gradient(narray, dataset)
     g = g.reshape(g.shape[0], 3, 3)
 
-    return dataset_adapter.VTKArray\
+    return dsa.VTKArray\
            (numpy.add.reduce(g.diagonal(axis1=1, axis2=2), 1), dataset=g.DataSet)
 
 def det (narray) :
@@ -267,11 +270,14 @@ def diagonal (dataset) :
 
 def dot (a1, a2):
     "Returns the dot product of two scalars/vectors of two array of scalars/vectors."
+    if a1 is dsa.NoneArray or a2 is dsa.NoneArray:
+      return dsa.NoneArray
+
     if a1.shape[1] != a2.shape[1] :
      raise RuntimeError, 'Dot product only works with vectors of same dimension.'\
                          'Input shapes ' + a1.shape + ' and ' + a2.shape
     m = a1*a2
-    va = dataset_adapter.VTKArray(numpy.add.reduce(m, 1))
+    va = dsa.VTKArray(numpy.add.reduce(m, 1))
     if a1.DataSet == a2.DataSet : va.DataSet = a1.DataSet
     return va
 
@@ -300,17 +306,17 @@ def gradient(narray, dataset=None):
     if ncomp == 1 : attribute_type = 'scalars'
     else : attribute_type = 'vectors'
 
-    dsa = _cell_derivatives(narray, dataset, attribute_type, cd)
+    res = _cell_derivatives(narray, dataset, attribute_type, cd)
 
-    if ncomp == 1 : retVal = dsa.GetVectors()
-    else : retVal = dsa.GetTensors()
+    if ncomp == 1 : retVal = res.GetVectors()
+    else : retVal = res.GetTensors()
 
     try:
         if narray.GetName() : retVal.SetName("gradient of " + narray.GetName())
         else : retVal.SetName("gradient")
     except AttributeError : retVal.SetName("gradient")
 
-    ans = dataset_adapter.vtkDataArrayToVTKArray(retVal, dataset)
+    ans = dsa.vtkDataArrayToVTKArray(retVal, dataset)
 
     # The association information has been lost over the vtk filter
     # we must reconstruct it otherwise lower pipeline will be broken.
@@ -351,8 +357,8 @@ def log10 (narray) :
 
 def max (narray, axis=None):
     "Returns the maximum value of an array of scalars/vectors/tensors."
-    if narray is dataset_adapter.NoneArray:
-      return dataset_adapter.NoneArray
+    if narray is dsa.NoneArray:
+      return dsa.NoneArray
     ans = numpy.max(narray, axis)
 #    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
@@ -367,16 +373,16 @@ def mag (a) :
 
 def mean (narray, axis=None) :
     "Returns the mean value of an array of scalars/vectors/tensors."
-    if narray is dataset_adapter.NoneArray:
-      return dataset_adapter.NoneArray
+    if narray is dsa.NoneArray:
+      return dsa.NoneArray
     ans = numpy.mean(numpy.array(narray), axis)
 #    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
 
 def min (narray, axis=None):
     "Returns the min value of an array of scalars/vectors/tensors."
-    if narray is dataset_adapter.NoneArray:
-      return dataset_adapter.NoneArray
+    if narray is dsa.NoneArray:
+      return dsa.NoneArray
     ans = numpy.min(numpy.array(narray), axis)
 #    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
@@ -409,12 +415,12 @@ def strain (narray, dataset=None) :
     cd = vtk.vtkCellDerivatives()
     cd.SetTensorModeToComputeStrain()
 
-    dsa = _cell_derivatives(narray, dataset, 'vectors', cd)
+    res = _cell_derivatives(narray, dataset, 'vectors', cd)
 
-    retVal = dsa.GetTensors()
+    retVal = res.GetTensors()
     retVal.SetName("strain")
 
-    ans = dataset_adapter.vtkDataArrayToVTKArray(retVal, dataset)
+    ans = dsa.vtkDataArrayToVTKArray(retVal, dataset)
 
     # The association information has been lost over the vtk filter
     # we must reconstruct it otherwise lower pipeline will be broken.
@@ -424,8 +430,8 @@ def strain (narray, dataset=None) :
 
 def sum (narray, axis=None):
     "Returns the min value of an array of scalars/vectors/tensors."
-    if narray is dataset_adapter.NoneArray:
-      return dataset_adapter.NoneArray
+    if narray is dsa.NoneArray:
+      return dsa.NoneArray
     return numpy.sum(narray, axis)
 
 def surface_normal (dataset) :
@@ -450,11 +456,11 @@ def surface_normal (dataset) :
     filter.Update()
 
     varray = filter.GetOutput().GetCellData().GetNormals()
-    ans = dataset_adapter.vtkDataArrayToVTKArray(varray, dataset)
+    ans = dsa.vtkDataArrayToVTKArray(varray, dataset)
 
     # The association information has been lost over the vtk filter
     # we must reconstruct it otherwise lower pipeline will be broken.
-    ans.Association = dataset_adapter.ArrayAssociation.CELL
+    ans.Association = dsa.ArrayAssociation.CELL
 
     return ans
 
@@ -469,8 +475,8 @@ def trace (narray) :
 
 def var (narray, axis=None) :
     "Returns the mean value of an array of scalars/vectors/tensors."
-    if narray is dataset_adapter.NoneArray:
-      return dataset_adapter.NoneArray
+    if narray is dsa.NoneArray:
+      return dsa.NoneArray
     return numpy.var(narray, axis)
 
 def volume (dataset) :
@@ -503,16 +509,15 @@ def vertex_normal (dataset) :
     filter.Update()
 
     varray = filter.GetOutput().GetPointData().GetNormals()
-    ans = dataset_adapter.vtkDataArrayToVTKArray(varray, dataset)
+    ans = dsa.vtkDataArrayToVTKArray(varray, dataset)
 
     # The association information has been lost over the vtk filter
     # we must reconstruct it otherwise lower pipeline will be broken.
-    ans.Association = dataset_adapter.ArrayAssociation.POINT
+    ans.Association = dsa.ArrayAssociation.POINT
 
     return ans
 
 def make_vector(ax, ay, az=None):
-    dsa = dataset_adapter
     if ax is dsa.NoneArray or ay is dsa.NoneArray or ay is dsa.NoneArray:
       return dsa.NoneArray
 
@@ -521,7 +526,7 @@ def make_vector(ax, ay, az=None):
 
     if az is None:
         az = numpy.zeros(ax.shape)
-    v = numpy.vstack([ax, ay, az]).transpose().view(dataset_adapter.VTKArray)
+    v = numpy.vstack([ax, ay, az]).transpose().view(dsa.VTKArray)
     # Copy defaults from first array. The user can always
     # overwrite this
     v.DataSet = ax.DataSet

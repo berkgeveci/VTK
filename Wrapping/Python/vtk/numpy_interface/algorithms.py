@@ -49,11 +49,13 @@ def make_dfunc(dfunc):
         elif type(array1) == dsa.VTKCompositeDataArray:
             res = []
             for a in array1.Arrays :
-                if a1 is dsa.NoneArray or a2 is dsa.NoneArray:
+                if a is dsa.NoneArray:
                     res.append(dsa.NoneArray)
                 else:
                     res.append(dfunc(a, val2))
             return dsa.VTKCompositeDataArray(res)
+        elif array1 is dsa.NoneArray:
+            return dsa.NoneArray
         else:
             return dfunc(array1, val2)
     return new_dfunc
