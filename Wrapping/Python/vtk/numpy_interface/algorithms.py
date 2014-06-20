@@ -68,6 +68,8 @@ def make_dsfunc(dsfunc):
                 else:
                     res.append(dsfunc(a, ds))
             return dsa.VTKCompositeDataArray(res)
+        elif array is dsa.NoneArray:
+            return dsa.NoneArray
         else:
             return dsfunc(array, ds)
     return new_dsfunc
@@ -82,6 +84,15 @@ def make_dsfunc2(dsfunc):
         else:
             return dsfunc(ds)
     return new_dsfunc2
+
+def _lookup_mpi_type(ntype):
+    from mpi4py import MPI
+    if ntype == numpy.float64:
+        return MPI.DOUBLE
+    elif ntype == numpy.bool:
+        return MPI.BOOL
+    else:
+        raise ValueError
 
 def global_func(impl, array, axis, controller):
     if type(array) == dsa.VTKCompositeDataArray:
@@ -120,7 +131,8 @@ def global_func(impl, array, axis, controller):
                 res = impl.default(max_tuples)
 
             res_recv = numpy.array(res)
-            comm.Allreduce([res, MPI.DOUBLE], [res_recv, MPI.DOUBLE], impl.mpi_op())
+            mpi_type = _lookup_mpi_type(res.dtype)
+            comm.Allreduce([res, mpi_type], [res_recv, mpi_type], impl.mpi_op())
             res = res_recv
 
     return res
@@ -198,6 +210,30 @@ def min(array, axis=None, controller=None):
 
     return global_func(MinImpl(), array, axis, controller)
 
+def all(array, axis=None, controller=None):
+    class MinImpl:
+        def op(self):
+            return algs.all
+
+        def mpi_op(self):
+            from mpi4py import MPI
+            return MPI.LAND
+
+        def serial_composite(self, array, axis):
+            res = apply_func2(algs.all, array, (axis,))
+            clean_list = []
+            for a in res:
+                if a is not dsa.NoneArray:
+                    clean_list.append(a)
+            if clean_list is []:
+                return None
+            return algs.all(clean_list, axis=0)
+
+        def default(self, max_tuples):
+            return numpy.ones(max_tuples, dtype=numpy.bool)
+
+    return global_func(MinImpl(), array, axis, controller)
+
 def _array_count(array, axis, controller):
 
     if array is dsa.NoneArray:
@@ -268,21 +304,24 @@ def shape(array):
     else:
         return numpy.shape(array)
 
-def make_vector(arrayx, arrayy, arrayz=dsa.NoneArray):
-    res = []
-    if arrayz is dsa.NoneArray:
-        for ax, ay in itertools.izip(arrayx.Arrays, arrayy.Arrays):
-            if ax is not dsa.NoneArray and ay is not dsa.NoneArray:
-                res.append(algs.make_vector(ax, ay))
-            else:
-                res.append(dsa.NoneArray)
+def make_vector(arrayx, arrayy, arrayz=None):
+    if type(arrayx) == dsa.VTKCompositeDataArray and type(arrayy) == dsa.VTKCompositeDataArray and (type(arrayz) == dsa.VTKCompositeDataArray or arrayz is None):
+        res = []
+        if arrayz is None:
+            for ax, ay in itertools.izip(arrayx.Arrays, arrayy.Arrays):
+                if ax is not dsa.NoneArray and ay is not dsa.NoneArray:
+                    res.append(algs.make_vector(ax, ay))
+                else:
+                    res.append(dsa.NoneArray)
+        else:
+            for ax, ay, az in itertools.izip(arrayx.Arrays, arrayy.Arrays, arrayz.Arrays):
+                if ax is not dsa.NoneArray and ay is not dsa.NoneArray and az is not dsa.NoneArray:
+                    res.append(algs.make_vector(ax, ay, az))
+                else:
+                    res.append(dsa.NoneArray)
+        return dsa.VTKCompositeDataArray(res)
     else:
-        for ax, ay, az in itertools.izip(arrayx.Arrays, arrayy.Arrays, arrayz.Arrays):
-            if ax is not dsa.NoneArray and ay is not dsa.NoneArray and az is not dsa.NoneArray:
-                res.append(algs.make_vector(ax, ay, az))
-            else:
-                res.append(dsa.NoneArray)
-    return dsa.VTKCompositeDataArray(res)
+        return algs.make_vector(arrayx, arrayy, arrayz)
 
 sqrt = make_ufunc(numpy.sqrt)
 exp = make_ufunc(numpy.exp)

@@ -168,6 +168,9 @@ class VTKNoneArray():
         add_default_op("gt")
         return type(name, parent, attr)
 
+    def __getitem__(self, index):
+        return NoneArray
+
     # def GetSize(self):
     #     size = numpy.int64(0)
     #     for a in self.Arrays:
@@ -263,13 +266,11 @@ class VTKCompositeDataArray():
             self.Arrays.append(ds.PointData[array_name])
 
     def __getitem__(self, index):
-        if type(index) != tuple:
-            index = (index,)
         res = []
-        if type(index[0]) == VTKCompositeDataArray:
-            for a, idx in itertools.izip(self.Arrays, index[0].Arrays):
+        if type(index) == VTKCompositeDataArray:
+            for a, idx in itertools.izip(self.Arrays, index.Arrays):
                 if a is not NoneArray:
-                    res.append(a.__getitem__((idx,)+index[1:]))
+                    res.append(a.__getitem__(idx))
                 else:
                     res.append(NoneArray)
         else:

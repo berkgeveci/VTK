@@ -170,6 +170,13 @@ def abs (narray) :
     "Returns the absolute values of an array of scalars/vectors/tensors."
     return numpy.abs(narray)
 
+def all (narray, axis=None):
+    "Returns the min value of an array of scalars/vectors/tensors."
+    if narray is dataset_adapter.NoneArray:
+      return dataset_adapter.NoneArray
+    ans = numpy.all(numpy.array(narray), axis)
+    return ans
+
 def area (dataset) :
     "Returns the surface area of each cell in a mesh."
     return _cell_quality(dataset, "area")
@@ -505,9 +512,18 @@ def vertex_normal (dataset) :
     return ans
 
 def make_vector(ax, ay, az=None):
+    dsa = dataset_adapter
+    if ax is dsa.NoneArray or ay is dsa.NoneArray or ay is dsa.NoneArray:
+      return dsa.NoneArray
+
     if len(ax.shape) != 1 or len(ay.shape) != 1 or (az != None and len(az.shape) != 1):
         raise ValueError, "Can only merge 1D arrays"
 
     if az is None:
         az = numpy.zeros(ax.shape)
-    return numpy.vstack([ax, ay, az]).transpose()
+    v = numpy.vstack([ax, ay, az]).transpose().view(dataset_adapter.VTKArray)
+    # Copy defaults from first array. The user can always
+    # overwrite this
+    v.DataSet = ax.DataSet
+    v.Association = ax.Association
+    return v
