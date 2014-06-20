@@ -4,8 +4,10 @@ import itertools
 import numpy
 try:
     from vtk.vtkParallelCore import vtkMultiProcessController
+    from vtk.vtkParallelMPI4Py import vtkMPI4PyCommunicator
 except ImportError:
     vtkMultiProcessController = None
+    vtkMPI4PyCommunicator = None
 
 def apply_func2(func, array, args):
     if array is dsa.NoneArray:
@@ -97,6 +99,7 @@ def global_func(impl, array, axis, controller):
             controller = vtkMultiProcessController.GetGlobalController()
         if controller:
             from mpi4py import MPI
+            comm = vtkMPI4PyCommunicator.ConvertToPython(controller.GetCommunicator())
 
             ntuples = numpy.int32(0)
             if type(res) == dsa.VTKArray or type(res) == numpy.ndarray:
@@ -108,7 +111,7 @@ def global_func(impl, array, axis, controller):
             elif type(res) == numpy.float64:
                 ntuples = numpy.int32(1)
             max_tuples = numpy.array(ntuples, dtype=numpy.int32)
-            MPI.COMM_WORLD.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
+            comm.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
 
             if res is dsa.NoneArray:
                 if max_tuples == 1:
@@ -117,7 +120,7 @@ def global_func(impl, array, axis, controller):
                 res = impl.default(max_tuples)
 
             res_recv = numpy.array(res)
-            MPI.COMM_WORLD.Allreduce([res, MPI.DOUBLE], [res_recv, MPI.DOUBLE], impl.mpi_op())
+            comm.Allreduce([res, MPI.DOUBLE], [res_recv, MPI.DOUBLE], impl.mpi_op())
             res = res_recv
 
     return res
@@ -195,34 +198,67 @@ def min(array, axis=None, controller=None):
 
     return global_func(MinImpl(), array, axis, controller)
 
-def mean(array, axis=None):
-    if type(array) == dsa.VTKCompositeDataArray:
-        if axis is None or axis == 0:
-            return sum(array, axis) / array.size
-        else:
-            return apply_func(numpy.mean, array, (axis,))
-    else:
-        return numpy.mean(array)
+def _array_count(array, axis, controller):
 
-def var(array, axis=None):
-    if type(array) == dsa.VTKCompositeDataArray:
-        if axis is None:
-            tmp = array - mean(array)
-            return sum(tmp*tmp) / array.size
-        elif axis == 0:
-            mn = mean(array, axis=0)
-            tmp = array - mn
-            return sum(tmp*tmp, axis=0) / shape(array)[0]
-        else:
-            return apply_func(numpy.var, array, (axis,))
+    if array is dsa.NoneArray:
+        size = numpy.int64(0)
+    elif axis is None:
+        size = numpy.int64(array.size)
     else:
-        return numpy.var(array)
+        size = numpy.int64(shape(array)[0])
 
-def std(array, axis=None):
-    if type(array) == dsa.VTKCompositeDataArray:
-        return sqrt(var(array,axis))
+    if controller is None and vtkMultiProcessController is not None:
+        controller = vtkMultiProcessController.GetGlobalController()
+
+    if controller:
+        from mpi4py import MPI
+        comm = vtkMPI4PyCommunicator.ConvertToPython(controller.GetCommunicator())
+
+        total_size = numpy.array(size, dtype=numpy.int64)
+        comm.Allreduce([size, MPI.INT64_T], [total_size, MPI.INT64_T], MPI.SUM)
+        size = total_size
+
+    return size
+
+def mean(array, axis=None, controller=None, size=None):
+
+    if axis is None or axis == 0:
+        if size is None:
+            size = _array_count(array, axis, controller)
+        return sum(array, axis) / size
     else:
-        return numpy.std(array,axis)
+        if type(array) == dsa.VTKCompositeDataArray:
+            return apply_func(algs.mean, array, (axis,))
+        else:
+            return algs.mean(array, axis)
+
+def var(array, axis=None, controller=None):
+
+    if axis is None or axis == 0:
+        size = _array_count(array, axis, controller)
+        tmp = array - mean(array, axis, controller, size)
+        return sum(tmp*tmp, axis, controller) / size
+    else:
+        if type(array) == dsa.VTKCompositeDataArray:
+            return apply_func(algs.var, array, (axis,))
+        else:
+            return algs.var(array, axis)
+
+    # if type(array) == dsa.VTKCompositeDataArray:
+    #     if axis is None:
+    #         tmp = array - mean(array)
+    #         return sum(tmp*tmp) / array.size
+    #     elif axis == 0:
+    #         mn = mean(array, axis=0)
+    #         tmp = array - mn
+    #         return sum(tmp*tmp, axis=0) / shape(array)[0]
+    #     else:
+    #         return apply_func(numpy.var, array, (axis,))
+    # else:
+    #     return numpy.var(array)
+
+def std(array, axis=None, controller=None):
+    return sqrt(var(array, axis, controller))
 
 def shape(array):
     if type(array) == dsa.VTKCompositeDataArray:
@@ -239,7 +275,9 @@ def shape(array):
                     for idx in range(1,len(tmp)):
                         if shp[idx] != tmp[idx]:
                             raise ValueError, "Expected arrays of same shape"
-        return shp
+        return tuple(shp)
+    elif array is dsa.NoneArray:
+        return ()
     else:
         return numpy.shape(array)
 

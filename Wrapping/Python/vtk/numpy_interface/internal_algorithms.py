@@ -358,16 +358,12 @@ def mag (a) :
     "Returns the magnigude of an array of scalars/vectors."
     return numpy.sqrt(dot(a, a))
 
-def mean(iter):
-    """Fallback mean implementation, since there is no builtin."""
-    s = sum(iter)
-    l = len(iter)
-    return s / l
-
-def mean (narray) :
+def mean (narray, axis=None) :
     "Returns the mean value of an array of scalars/vectors/tensors."
-    ans = numpy.mean(numpy.array(narray), axis=0)
-    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
+    if narray is dataset_adapter.NoneArray:
+      return dataset_adapter.NoneArray
+    ans = numpy.mean(numpy.array(narray), axis)
+#    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
 
 def min (narray, axis=None):
@@ -463,6 +459,12 @@ def trace (narray) :
        ax1 = 1
        ax2 = 2
     return numpy.trace(narray, axis1=ax1, axis2=ax2)
+
+def var (narray, axis=None) :
+    "Returns the mean value of an array of scalars/vectors/tensors."
+    if narray is dataset_adapter.NoneArray:
+      return dataset_adapter.NoneArray
+    return numpy.var(narray, axis)
 
 def volume (dataset) :
     "Returns the volume normal of each cell in a dataset."
