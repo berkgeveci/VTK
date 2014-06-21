@@ -462,16 +462,14 @@ class CompositeDataSetAttributes():
 
     def append(self, narray, name):
         """Appends a new array to the composite dataset attributes."""
+        added = False
         for ds, array in itertools.izip(self.DataSet, narray.Arrays):
             if array != None:
-                if self.Association == ArrayAssociation.POINT:
-                    ds.PointData.append(array, name)
-                elif self.Association == ArrayAssociation.CELL:
-                    ds.CellData.append(array, name)
-                elif self.Association == ArrayAssociation.FIELD:
-                    ds.FieldData.append(array, name)
-                elif self.Association == ArrayAssociation.ROW:
-                    ds.RowData.append(array, name)
+                ds.GetAttributes(self.Association).append(array, name)
+                added = True
+        if added:
+            self.ArrayNames.append(name)
+            self.Arrays[name] = weakref.ref(narray)
 
     def GetArray(self, idx):
         """Given an index or name, returns a VTKCompositeArray."""
