@@ -11,7 +11,6 @@ import weakref
 
 # remove this after debugging
 import vtk
-timer = vtk.vtkTimerLog()
 
 class ArrayAssociation :
     """Easy access to vtkDataObject.AttributeTypes"""
@@ -262,16 +261,16 @@ class VTKCompositeDataArray():
 
     size = property(GetSize)
 
-    def __init__(self, arrays = []):
+    def __init__(self, arrays = [], dataset = None,
+                 association = ArrayAssociation.FIELD):
         self.Arrays = arrays
+        self.DataSet = dataset
+        self.Association = association
 
     def InitFromCompositeData(self, composite_data, array_name):
-        timer.StartTimer()
         self.Arrays = []
         for ds in composite_data:
-            self.Arrays.append(ds.PointData[array_name])
-        timer.StopTimer()
-        print "init from composite:", timer.GetElapsedTime()
+            self.Arrays.append(ds.GetAttributes(self.Association)[array_name])
 
     def __getitem__(self, index):
         res = []
@@ -435,14 +434,12 @@ class CompositeDataSetAttributes():
         self.DataSet = dataset
         self.Association = association
         self.ArrayNames = []
+        self.Arrays = {}
 
         # build the set of arrays available in the composite dataset. Since
         # composite datasets can have partial arrays, we need to iterate over
         # all non-null blocks in the dataset.
-        timer.StartTimer()
         self.__determine_arraynames()
-        timer.StopTimer()
-        print "determine array names: ", timer.GetElapsedTime()
 
     def __determine_arraynames(self):
         array_set = set()
@@ -484,8 +481,13 @@ class CompositeDataSetAttributes():
             arrayname = idx
         if arrayname not in self.ArrayNames:
             return NoneArray
-        array = VTKCompositeDataArray()
-        array.InitFromCompositeData(self.DataSet, arrayname)
+        if arrayname not in self.Arrays or self.Arrays[arrayname]() is None:
+            array = VTKCompositeDataArray(
+                dataset = self, association = self.Association)
+            array.InitFromCompositeData(self.DataSet, arrayname)
+            self.Arrays[arrayname] = weakref.ref(array)
+        else:
+            array = self.Arrays[arrayname]()
         return array
 
     def PassData(self, other):
@@ -564,6 +566,11 @@ class Table(DataObject):
         the row data of the table.")
 
 class CompositeDataSet(DataObject):
+    def __init__(self, vtkobject):
+        DataObject.__init__(self, vtkobject)
+        self._PointData = None
+        self._CellData = None
+
     def __iter__(self):
         "Creates an iterator for the contained datasets."
         return CompositeDataIterator(self)
@@ -587,11 +594,17 @@ class CompositeDataSet(DataObject):
 
     def GetPointData(self):
         "Returns the point data as a DataSetAttributes instance."
-        return self.GetAttributes(ArrayAssociation.POINT)
+        if self._PointData is None or self._PointData() is None:
+            pdata = self.GetAttributes(ArrayAssociation.POINT)
+            self._PointData = weakref.ref(pdata)
+        return self._PointData()
 
     def GetCellData(self):
         "Returns the cell data as a DataSetAttributes instance."
-        return self.GetAttributes(ArrayAssociation.CELL)
+        if self._CellData is None or self._CellData() is None:
+            cdata = self.GetAttributes(ArrayAssociation.CELL)
+            self._CellData = weakref.ref(cdata)
+        return self._CellData()
 
     PointData = property(GetPointData, None, None, "This property returns \
         the point data of the dataset.")
