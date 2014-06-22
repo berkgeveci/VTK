@@ -304,7 +304,7 @@ class VTKCompositeDataArray():
                     res.append(a.__getitem__(index))
                 else:
                     res.append(NoneArray)
-        return VTKCompositeDataArray(res)
+        return VTKCompositeDataArray(res, dataset=self.DataSet)
 
     def _numeric_op(self, other, op):
         """Used to implement numpy-style numerical operations such as __add__,
@@ -323,7 +323,7 @@ class VTKCompositeDataArray():
                     res.append(op(a, other))
                 else:
                     res.append(NoneArray)
-        return VTKCompositeDataArray(res)
+        return VTKCompositeDataArray(res, dataset=self.DataSet)
 
     def _reverse_numeric_op(self, other, op):
         """Used to implement numpy-style numerical operations such as __add__,
@@ -342,7 +342,7 @@ class VTKCompositeDataArray():
                     res.append(op(other, a))
                 else:
                     res.append(NoneArray)
-        return VTKCompositeDataArray(res)
+        return VTKCompositeDataArray(res, dataset=self.DataSet)
 
     def __str__(self):
         return self.Arrays.__str__()

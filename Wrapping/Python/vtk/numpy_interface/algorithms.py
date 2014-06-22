@@ -18,7 +18,7 @@ def apply_func2(func, array, args):
     return res
 
 def apply_func(func, array, args):
-    return dsa.VTKCompositeDataArray(apply_func2(func, array, args))
+    return dsa.VTKCompositeDataArray(apply_func2(func, array, args), dataset = array.DataSet)
 
 def make_ufunc(ufunc):
     def new_ufunc(array):
@@ -29,7 +29,7 @@ def make_ufunc(ufunc):
                     res.append(dsa.NoneArray)
                 else:
                     res.append(ufunc(a))
-            return dsa.VTKCompositeDataArray(res)
+            return dsa.VTKCompositeDataArray(res, dataset = array.DataSet)
         elif array is dsa.NoneArray:
             return dsa.NoneArray
         else:
@@ -45,7 +45,7 @@ def make_dfunc(dfunc):
                     res.append(dsa.NoneArray)
                 else:
                     res.append(dfunc(a1, a2))
-            return dsa.VTKCompositeDataArray(res)
+            return dsa.VTKCompositeDataArray(res, dataset = array1.DataSet)
         elif type(array1) == dsa.VTKCompositeDataArray:
             res = []
             for a in array1.Arrays :
@@ -53,7 +53,7 @@ def make_dfunc(dfunc):
                     res.append(dsa.NoneArray)
                 else:
                     res.append(dfunc(a, val2))
-            return dsa.VTKCompositeDataArray(res)
+            return dsa.VTKCompositeDataArray(res, dataset = array1.DataSet)
         elif array1 is dsa.NoneArray:
             return dsa.NoneArray
         else:
@@ -69,7 +69,7 @@ def make_dsfunc(dsfunc):
                     res.append(dsa.NoneArray)
                 else:
                     res.append(dsfunc(a, ds))
-            return dsa.VTKCompositeDataArray(res)
+            return dsa.VTKCompositeDataArray(res, dataset = array.DataSet)
         elif array is dsa.NoneArray:
             return dsa.NoneArray
         else:
@@ -82,7 +82,7 @@ def make_dsfunc2(dsfunc):
             res = []
             for dataset in ds:
                 res.append(dsfunc(dataset))
-            return dsa.VTKCompositeDataArray(res)
+            return dsa.VTKCompositeDataArray(res, dataset = dataset)
         else:
             return dsfunc(ds)
     return new_dsfunc2
@@ -321,7 +321,7 @@ def make_vector(arrayx, arrayy, arrayz=None):
                     res.append(algs.make_vector(ax, ay, az))
                 else:
                     res.append(dsa.NoneArray)
-        return dsa.VTKCompositeDataArray(res)
+        return dsa.VTKCompositeDataArray(res, dataset = arrayx.DataSet)
     else:
         return algs.make_vector(arrayx, arrayy, arrayz)
 
