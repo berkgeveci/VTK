@@ -250,9 +250,31 @@ class VTKCompositeDataArray():
         add_default_numeric_op("gt")
         return type(name, parent, attr)
 
+    def __init__(self, arrays = [], dataset = None, name = None,
+                 association = ArrayAssociation.FIELD):
+        self._Arrays = arrays
+        self.DataSet = dataset
+        self.Name = name
+        self.Association = association
+        self.Initialized = False
+
+    def __init_from_composite(self):
+        if self.Initialized:
+            return
+
+        self.Initialized = True
+
+        if self.DataSet is None or self.Name is None:
+            return
+
+        self._Arrays = []
+        for ds in self.DataSet:
+            self._Arrays.append(ds.GetAttributes(self.Association)[self.Name])
+
     def GetSize(self):
+        self.__init_from_composite()
         size = numpy.int64(0)
-        for a in self.Arrays:
+        for a in self._Arrays:
             try:
                 size += a.size
             except AttributeError:
@@ -261,27 +283,23 @@ class VTKCompositeDataArray():
 
     size = property(GetSize)
 
-    def __init__(self, arrays = [], dataset = None,
-                 association = ArrayAssociation.FIELD):
-        self.Arrays = arrays
-        self.DataSet = dataset
-        self.Association = association
+    def GetArrays(self):
+        self.__init_from_composite()
+        return self._Arrays
 
-    def InitFromCompositeData(self, composite_data, array_name):
-        self.Arrays = []
-        for ds in composite_data:
-            self.Arrays.append(ds.GetAttributes(self.Association)[array_name])
+    Arrays = property(GetArrays)
 
     def __getitem__(self, index):
+        self.__init_from_composite()
         res = []
         if type(index) == VTKCompositeDataArray:
-            for a, idx in itertools.izip(self.Arrays, index.Arrays):
+            for a, idx in itertools.izip(self._Arrays, index.Arrays):
                 if a is not NoneArray:
                     res.append(a.__getitem__(idx))
                 else:
                     res.append(NoneArray)
         else:
-            for a in self.Arrays:
+            for a in self._Arrays:
                 if a is not NoneArray:
                     res.append(a.__getitem__(index))
                 else:
@@ -291,15 +309,16 @@ class VTKCompositeDataArray():
     def _numeric_op(self, other, op):
         """Used to implement numpy-style numerical operations such as __add__,
         __mul__, etc."""
+        self.__init_from_composite()
         res = []
         if type(other) == VTKCompositeDataArray:
-            for a1, a2 in itertools.izip(self.Arrays, other.Arrays):
+            for a1, a2 in itertools.izip(self._Arrays, other.Arrays):
                 if a1 is not NoneArray and a2 is not NoneArray:
                     res.append(op(a1,a2))
                 else:
                     res.append(NoneArray)
         else:
-            for a in self.Arrays:
+            for a in self._Arrays:
                 if a is not NoneArray:
                     res.append(op(a, other))
                 else:
@@ -309,15 +328,16 @@ class VTKCompositeDataArray():
     def _reverse_numeric_op(self, other, op):
         """Used to implement numpy-style numerical operations such as __add__,
         __mul__, etc."""
+        self.__init_from_composite()
         res = []
         if type(other) == VTKCompositeDataArray:
-            for a1, a2 in itertools.izip(self.Arrays, other.Arrays):
+            for a1, a2 in itertools.izip(self._Arrays, other.Arrays):
                 if a1 is not NoneArray and a2 is notNoneArray:
                     res.append(op(a2,a1))
                 else:
                     res.append(NoneArray)
         else:
-            for a in self.Arrays:
+            for a in self._Arrays:
                 if a is not NoneArray:
                     res.append(op(other, a))
                 else:
@@ -387,6 +407,11 @@ class DataSetAttributes(VTKObjectWrapper):
             arrLength = self.DataSet.GetNumberOfPoints()
         elif self.Association == ArrayAssociation.CELL:
             arrLength = self.DataSet.GetNumberOfCells()
+        else:
+            if not isinstance(narray, numpy.ndarray):
+                arrLength = 1
+            else:
+                arrLength = narray.shape[0]
 
         # Fixup input array length:
         if not isinstance(narray, numpy.ndarray): # Scalar input
@@ -481,8 +506,7 @@ class CompositeDataSetAttributes():
             return NoneArray
         if arrayname not in self.Arrays or self.Arrays[arrayname]() is None:
             array = VTKCompositeDataArray(
-                dataset = self, association = self.Association)
-            array.InitFromCompositeData(self.DataSet, arrayname)
+                dataset = self.DataSet, name = arrayname, association = self.Association)
             self.Arrays[arrayname] = weakref.ref(array)
         else:
             array = self.Arrays[arrayname]()
@@ -546,6 +570,8 @@ class DataObject(VTKObjectWrapper):
     def GetAttributes(self, type):
         """Returns the attributes specified by the type as a DataSetAttributes
          instance."""
+        if type == ArrayAssociation.FIELD:
+            return DataSetAttributes(self.VTKObject.GetFieldData(), self, type)
         return DataSetAttributes(self.VTKObject.GetAttributes(type), self, type)
 
     def GetFieldData(self):
@@ -568,6 +594,7 @@ class CompositeDataSet(DataObject):
         DataObject.__init__(self, vtkobject)
         self._PointData = None
         self._CellData = None
+        self._FieldData = None
 
     def __iter__(self):
         "Creates an iterator for the contained datasets."
@@ -604,10 +631,19 @@ class CompositeDataSet(DataObject):
             self._CellData = weakref.ref(cdata)
         return self._CellData()
 
+    def GetFieldData(self):
+        "Returns the field data as a DataSetAttributes instance."
+        if self._FieldData is None or self._FieldData() is None:
+            fdata = self.GetAttributes(ArrayAssociation.FIELD)
+            self._FieldData = weakref.ref(fdata)
+        return self._FieldData()
+
     PointData = property(GetPointData, None, None, "This property returns \
         the point data of the dataset.")
     CellData = property(GetCellData, None, None, "This property returns \
         the cell data of a dataset.")
+    FieldData = property(GetFieldData, None, None, "This property returns \
+        the field data of a dataset.")
 
 class DataSet(DataObject):
     """This is a python friendly wrapper of a vtkDataSet that defines
