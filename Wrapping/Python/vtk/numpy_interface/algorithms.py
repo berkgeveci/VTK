@@ -115,23 +115,23 @@ def global_func(impl, array, axis, controller):
             from mpi4py import MPI
             comm = vtkMPI4PyCommunicator.ConvertToPython(controller.GetCommunicator())
 
-            ntuples = numpy.int32(0)
+            ncomps = numpy.int32(0)
             if type(res) == dsa.VTKArray or type(res) == numpy.ndarray:
                 shp = shape(res)
                 if len(shp) == 0:
-                    ntuples = numpy.int32(1)
+                    ncomps = numpy.int32(1)
                 else:
-                    ntuples = numpy.int32(res.shape[0])
+                    ncomps = numpy.int32(res.shape[0])
             elif type(res) == numpy.float64:
-                ntuples = numpy.int32(1)
-            max_tuples = numpy.array(ntuples, dtype=numpy.int32)
-            comm.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
+                ncomps = numpy.int32(1)
+            max_comps = numpy.array(ncomps, dtype=numpy.int32)
+            comm.Allreduce([ncomps, MPI.INT], [max_comps, MPI.INT], MPI.MAX)
 
             if res is dsa.NoneArray:
-                if max_tuples == 1:
+                if max_comps == 1:
                     # Weird trick to make the array look like a scalar
-                    max_tuples = ()
-                res = impl.default(max_tuples)
+                    max_comps = ()
+                res = impl.default(max_comps)
 
             res_recv = numpy.array(res)
             mpi_type = _lookup_mpi_type(res.dtype)
@@ -160,8 +160,8 @@ def sum(array, axis=None, controller=None):
                         res += algs.sum(a, axis)
             return res
 
-        def default(self, max_tuples):
-            return numpy.zeros(max_tuples, dtype=numpy.float64)
+        def default(self, max_comps):
+            return numpy.zeros(max_comps, dtype=numpy.float64)
 
     return global_func(SumImpl(), array, axis, controller)
 
@@ -184,8 +184,8 @@ def max(array, axis=None, controller=None):
                 return None
             return algs.max(clean_list, axis=0).astype(numpy.float64)
 
-        def default(self, max_tuples):
-            return numpy.ones(max_tuples, dtype=numpy.float64) * numpy.finfo(numpy.float64).min
+        def default(self, max_comps):
+            return numpy.ones(max_comps, dtype=numpy.float64) * numpy.finfo(numpy.float64).min
 
     return global_func(MaxImpl(), array, axis, controller)
 
@@ -208,10 +208,147 @@ def min(array, axis=None, controller=None):
                 return None
             return algs.min(clean_list, axis=0).astype(numpy.float64)
 
-        def default(self, max_tuples):
-            return numpy.ones(max_tuples, dtype=numpy.float64) * numpy.finfo(numpy.float64).max
+        def default(self, max_comps):
+            return numpy.ones(max_comps, dtype=numpy.float64) * numpy.finfo(numpy.float64).max
 
     return global_func(MinImpl(), array, axis, controller)
+
+def global_per_block(impl, array, axis=None, controller=None):
+    t = type(array)
+    if t == dsa.VTKArray or t == numpy.ndarray:
+        return impl.op()(array, axis, controller)
+    elif array is dsa.NoneArray:
+        return dsa.NoneArray
+
+    if axis > 0:
+        return impl.op()(array, axis=axis, controller=controller)
+
+    maxes = apply_func2(impl.op2(), array, (axis,))
+
+    if controller is None and vtkMultiProcessController is not None:
+        controller = vtkMultiProcessController.GetGlobalController()
+    if controller and controller.IsA("vtkMPIController"):
+        from mpi4py import MPI
+        comm = vtkMPI4PyCommunicator.ConvertToPython(controller.GetCommunicator())
+
+        # First determine the number of components to use
+        # for reduction
+        for res in maxes:
+            if res is not dsa.NoneArray:
+                break
+
+        ncomps = numpy.int32(0)
+        if type(res) == dsa.VTKArray or type(res) == numpy.ndarray:
+            shp = shape(res)
+            if len(shp) == 0:
+                ncomps = numpy.int32(1)
+            else:
+                ncomps = numpy.int32(res.size)
+        elif type(res) == numpy.float64:
+            ncomps = numpy.int32(1)
+        max_comps = numpy.array(ncomps, dtype=numpy.int32)
+        comm.Allreduce([ncomps, MPI.INT], [max_comps, MPI.INT], MPI.MAX)
+
+        # Get all ids from dataset, including empty ones.
+        it = array.DataSet.NewIterator()
+        it.UnRegister(None)
+        it.SetSkipEmptyNodes(False)
+        ids = []
+        max_id = 0
+        while not it.IsDoneWithTraversal():
+            _id = it.GetCurrentFlatIndex()
+            max_id = numpy.max((max_id, _id))
+            if it.GetCurrentDataObject() is not None:
+                ids.append(_id)
+            it.GoToNextItem()
+
+        # Next determine the max id to use for reduction
+        # operations
+        if max_id == 0:
+            return dsa.VTKCompositeDataArray(maxes, dataset=array.DataSet)
+
+        has_ids = numpy.zeros(max_id+1, dtype=numpy.int32)
+        for _id in ids:
+            has_ids[_id] = 1
+        id_cout = numpy.array(has_ids)
+        comm.Allreduce([has_ids, MPI.INT], [id_cout, MPI.INT], MPI.SUM)
+
+        # Now that we know which blocks are shared by more than
+        # 1 rank. The ones that have a count of 2 or more.
+        reduce_ids = []
+        for _id in ids:
+            if id_cout[_id] > 1:
+                reduce_ids.append(_id)
+
+        to_reduce = len(reduce_ids)
+        # If not block is shared, short circuit. No need to
+        # communicate any more.
+        if to_reduce == 0:
+            return dsa.VTKCompositeDataArray(maxes, dataset=array.DataSet)
+
+        # Create the local array that will be used for
+        # reduction. Set it to a value that won't effect
+        # the reduction.
+        lmaxes = numpy.empty(max_comps*to_reduce)
+        lmaxes.fill(impl.default())
+
+        # Just get non-empty ids. Doing this again in case
+        # the traversal above results in a different order.
+        # We need the same order since we'll use izip below.
+        it = array.DataSet.NewIterator()
+        it.UnRegister(None)
+        ids = []
+        while not it.IsDoneWithTraversal():
+            ids.append(it.GetCurrentFlatIndex())
+            it.GoToNextItem()
+
+        # Fill the local array with available values.
+        for _id, _max in itertools.izip(ids, maxes):
+            success = True
+            try:
+                loc = reduce_ids.index(_id)
+            except ValueError:
+                success = False
+            if success:
+                lmaxes[loc*max_comps:(loc+1)*max_comps] = _max.flatten()
+
+        # Now do the MPI reduction.
+        rmaxes = numpy.array(lmaxes)
+        comm.Allreduce([lmaxes, MPI.DOUBLE], [rmaxes, MPI.DOUBLE], impl.mpi_op())
+
+        # Fill in the reduced values.
+        for i in xrange(to_reduce):
+            _id = reduce_ids[i]
+            success = True
+            try:
+                loc = ids.index(_id)
+            except ValueError:
+                success = False
+            if success:
+                a = maxes[loc]
+                if len(a.shape) == 0:
+                    maxes[loc] = dsa.VTKArray(rmaxes[i])
+                else:
+                    maxes[loc][:] = rmaxes[i*max_comps:(i+1)*max_comps].reshape(a.shape)
+
+    return dsa.VTKCompositeDataArray(maxes, dataset=array.DataSet)
+
+def max_per_block2(array, axis=None, controller=None):
+    class MaxPerBlockImpl:
+        def op(self):
+            return max
+
+        def op2(self):
+            return algs.max
+
+        def mpi_op(self):
+            from mpi4py import MPI
+            return MPI.MAX
+
+        def default(self):
+            return numpy.finfo(numpy.float64).min
+
+    return global_per_block(MaxPerBlockImpl(), array, axis, controller)
 
 def max_per_block(array, axis=None, controller=None):
     t = type(array)
@@ -219,6 +356,9 @@ def max_per_block(array, axis=None, controller=None):
         return max(array, axis, controller)
     elif array is dsa.NoneArray:
         return dsa.NoneArray
+
+    if axis > 0:
+        return max(array, axis=axis, controller=controller)
 
     maxes = apply_func2(max, array, (axis, vtkDummyController()))
 
@@ -232,17 +372,17 @@ def max_per_block(array, axis=None, controller=None):
             if res is not dsa.NoneArray:
                 break
 
-        ntuples = numpy.int32(0)
+        ncomps = numpy.int32(0)
         if type(res) == dsa.VTKArray or type(res) == numpy.ndarray:
             shp = shape(res)
             if len(shp) == 0:
-                ntuples = numpy.int32(1)
+                ncomps = numpy.int32(1)
             else:
-                ntuples = numpy.int32(res.shape[0])
+                ncomps = numpy.int32(res.size)
         elif type(res) == numpy.float64:
-            ntuples = numpy.int32(1)
-        max_tuples = numpy.array(ntuples, dtype=numpy.int32)
-        comm.Allreduce([ntuples, MPI.INT], [max_tuples, MPI.INT], MPI.MAX)
+            ncomps = numpy.int32(1)
+        max_comps = numpy.array(ncomps, dtype=numpy.int32)
+        comm.Allreduce([ncomps, MPI.INT], [max_comps, MPI.INT], MPI.MAX)
 
         # Get all ids from dataset, including empty ones.
         it = array.DataSet.NewIterator()
@@ -275,7 +415,7 @@ def max_per_block(array, axis=None, controller=None):
         if to_reduce == 0:
             return dsa.VTKCompositeDataArray(maxes, dataset=array.DataSet)
 
-        lmaxes = numpy.empty(max_tuples*to_reduce)
+        lmaxes = numpy.empty(max_comps*to_reduce)
         lmaxes.fill(numpy.finfo(numpy.float64).min)
 
         # Just get non-empty ids. Doing this again in case
@@ -289,30 +429,40 @@ def max_per_block(array, axis=None, controller=None):
             it.GoToNextItem()
 
         for _id, _max in itertools.izip(ids, maxes):
+            success = True
             try:
                 loc = reduce_ids.index(_id)
-                lmaxes[loc*max_tuples:(loc+1)*max_tuples] = _max
             except ValueError:
-                pass
+                success = False
+            if success:
+                lmaxes[loc*max_comps:(loc+1)*max_comps] = _max.flatten()
 
         rmaxes = numpy.array(lmaxes)
         comm.Allreduce([lmaxes, MPI.DOUBLE], [rmaxes, MPI.DOUBLE], MPI.MAX)
 
         for i in xrange(to_reduce):
             _id = reduce_ids[i]
+            success = True
             try:
                 loc = ids.index(_id)
+            except ValueError:
+                success = False
+            if success:
                 a = maxes[loc]
                 if len(a.shape) == 0:
                     maxes[loc] = dsa.VTKArray(rmaxes[i])
                 else:
-                    maxes[loc][:] = rmaxes[i*max_tuples:(i+1)*max_tuples]
-            except ValueError:
-                pass
+                    maxes[loc][:] = rmaxes[i*max_comps:(i+1)*max_comps].reshape(a.shape)
 
     return dsa.VTKCompositeDataArray(maxes, dataset=array.DataSet)
 
 def min_per_block(array, axis=None):
+    t = type(array)
+    if t == dsa.VTKArray or t == numpy.ndarray:
+        return min(array, axis, controller)
+    elif array is dsa.NoneArray:
+        return dsa.NoneArray
+
     l = apply_func2(min, array, (axis, vtkDummyController()))
     return dsa.VTKCompositeDataArray(l, dataset=array.DataSet)
 
@@ -335,8 +485,8 @@ def all(array, axis=None, controller=None):
                 return None
             return algs.all(clean_list, axis=0)
 
-        def default(self, max_tuples):
-            return numpy.ones(max_tuples, dtype=numpy.bool)
+        def default(self, max_comps):
+            return numpy.ones(max_comps, dtype=numpy.bool)
 
     return global_func(MinImpl(), array, axis, controller)
 
