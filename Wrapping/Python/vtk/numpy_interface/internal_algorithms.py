@@ -383,7 +383,7 @@ def min (narray, axis=None):
     "Returns the min value of an array of scalars/vectors/tensors."
     if narray is dsa.NoneArray:
       return dsa.NoneArray
-    ans = numpy.min(numpy.array(narray), axis)
+    ans = numpy.min(narray, axis)
 #    if len(ans.shape) == 2 and ans.shape[0] == 3 and ans.shape[1] == 3: ans.reshape(9)
     return ans
 
