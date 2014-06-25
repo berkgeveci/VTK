@@ -97,6 +97,31 @@ def _lookup_mpi_type(ntype):
     else:
         raise ValueError
 
+def _reduce_dims(array, comm):
+    from mpi4py import MPI
+    dims = numpy.array([0, 0], dtype=numpy.int32)
+    if array is not dsa.NoneArray:
+        shp = shape(array)
+        if len(shp) == 0:
+            dims = numpy.array([1, 0], dtype=numpy.int32)
+        elif len(shp) == 1:
+            dims = numpy.array([shp[0], 0], dtype=numpy.int32)
+        else:
+            dims = numpy.array(shp, dtype=numpy.int32)
+    max_dims = numpy.array(dims, dtype=numpy.int32)
+    comm.Allreduce([dims, MPI.INT], [max_dims, MPI.INT], MPI.MAX)
+
+    if max_dims[1] == 0:
+        max_dims = numpy.array((max_dims[0],))
+        size = max_dims[0]
+    else:
+        size = max_dims[0]*max_dims[1]
+
+    if max_dims[0] == 1:
+        max_dims = 1
+
+    return (max_dims, size)
+
 def global_func(impl, array, axis, controller):
     if type(array) == dsa.VTKCompositeDataArray:
         if axis is None or axis == 0:
@@ -115,21 +140,18 @@ def global_func(impl, array, axis, controller):
             from mpi4py import MPI
             comm = vtkMPI4PyCommunicator.ConvertToPython(controller.GetCommunicator())
 
-            ncomps = numpy.int32(0)
-            if res is not dsa.NoneArray:
-                shp = shape(res)
-                if len(shp) == 0:
-                    ncomps = numpy.int32(1)
-                else:
-                    ncomps = numpy.int32(res.shape[0])
-            max_comps = numpy.array(ncomps, dtype=numpy.int32)
-            comm.Allreduce([ncomps, MPI.INT], [max_comps, MPI.INT], MPI.MAX)
+            max_dims, size = _reduce_dims(res, comm)
+
+            # All NoneArrays
+            if size == 0:
+                return dsa.NoneArray;
 
             if res is dsa.NoneArray:
-                if max_comps == 1:
+                if max_dims is 1:
                     # Weird trick to make the array look like a scalar
-                    max_comps = ()
-                res = impl.default(max_comps)
+                    max_dims = ()
+                res = numpy.empty(max_dims)
+                res.fill(impl.default())
 
             res_recv = numpy.array(res)
             mpi_type = _lookup_mpi_type(res.dtype)
@@ -158,8 +180,8 @@ def sum(array, axis=None, controller=None):
                         res += algs.sum(a, axis)
             return res
 
-        def default(self, max_comps):
-            return numpy.zeros(max_comps, dtype=numpy.float64)
+        def default(self):
+            return numpy.float64(0)
 
     return global_func(SumImpl(), array, axis, controller)
 
@@ -182,8 +204,8 @@ def max(array, axis=None, controller=None):
                 return None
             return algs.max(clean_list, axis=0).astype(numpy.float64)
 
-        def default(self, max_comps):
-            return numpy.ones(max_comps, dtype=numpy.float64) * numpy.finfo(numpy.float64).min
+        def default(self):
+            return numpy.finfo(numpy.float64).min
 
     return global_func(MaxImpl(), array, axis, controller)
 
@@ -206,20 +228,27 @@ def min(array, axis=None, controller=None):
                 return None
             return algs.min(clean_list, axis=0).astype(numpy.float64)
 
-        def default(self, max_comps):
-            return numpy.ones(max_comps, dtype=numpy.float64) * numpy.finfo(numpy.float64).max
+        def default(self):
+            return numpy.finfo(numpy.float64).max
 
     return global_func(MinImpl(), array, axis, controller)
 
 def global_per_block(impl, array, axis=None, controller=None):
-    t = type(array)
-    if t == dsa.VTKArray or t == numpy.ndarray:
-        return impl.op()(array, axis, controller)
-    elif array is dsa.NoneArray:
-        return dsa.NoneArray
-
     if axis > 0:
         return impl.op()(array, axis=axis, controller=controller)
+
+    try:
+        dataset = array.DataSet
+    except AttributeError:
+        dataset = None
+
+    t = type(array)
+    if t == dsa.VTKArray or t == numpy.ndarray:
+        from vtk.vtkCommonDataModel import vtkMultiBlockDataSet
+        array = dsa.VTKCompositeDataArray([array])
+        ds = vtkMultiBlockDataSet()
+        ds.SetBlock(0, dataset.VTKObject)
+        dataset = ds
 
     results = apply_func2(impl.op2(), array, (axis,))
 
@@ -231,72 +260,74 @@ def global_per_block(impl, array, axis=None, controller=None):
 
         # First determine the number of components to use
         # for reduction
+        res = dsa.NoneArray
         for res in results:
             if res is not dsa.NoneArray:
                 break
 
-        ncomps = numpy.int32(0)
-        if res is not dsa.NoneArray:
-            shp = shape(res)
-            if len(shp) == 0:
-                ncomps = numpy.int32(1)
-            else:
-                ncomps = numpy.int32(res.size)
-        max_comps = numpy.array(ncomps, dtype=numpy.int32)
-        comm.Allreduce([ncomps, MPI.INT], [max_comps, MPI.INT], MPI.MAX)
+        max_dims, size = _reduce_dims(res, comm)
 
-        # Get all ids from dataset, including empty ones.
-        it = array.DataSet.NewIterator()
-        it.UnRegister(None)
-        it.SetSkipEmptyNodes(False)
-        ids = []
-        max_id = 0
-        while not it.IsDoneWithTraversal():
-            _id = it.GetCurrentFlatIndex()
-            max_id = numpy.max((max_id, _id))
-            if it.GetCurrentDataObject() is not None:
-                ids.append(_id)
-            it.GoToNextItem()
+        # All NoneArrays
+        if size == 0:
+            return dsa.NoneArray;
 
         # Next determine the max id to use for reduction
         # operations
-        if max_id == 0:
-            return dsa.VTKCompositeDataArray(results, dataset=array.DataSet)
+
+        # Get all ids from dataset, including empty ones.
+        ids = []
+        lmax_id = numpy.int64(0)
+        if dataset is not None:
+            it = dataset.NewIterator()
+            it.UnRegister(None)
+            it.SetSkipEmptyNodes(False)
+            while not it.IsDoneWithTraversal():
+                _id = it.GetCurrentFlatIndex()
+                lmax_id = numpy.max((lmax_id, _id))
+                if it.GetCurrentDataObject() is not None:
+                    ids.append(_id)
+                it.GoToNextItem()
+        max_id = numpy.array(0, dtype=numpy.int64)
+        comm.Allreduce([lmax_id, MPI.INT], [max_id, MPI.INT], MPI.MAX)
 
         has_ids = numpy.zeros(max_id+1, dtype=numpy.int32)
         for _id in ids:
             has_ids[_id] = 1
-        id_cout = numpy.array(has_ids)
-        comm.Allreduce([has_ids, MPI.INT], [id_cout, MPI.INT], MPI.SUM)
+        id_count = numpy.array(has_ids)
+        comm.Allreduce([has_ids, MPI.INT], [id_count, MPI.INT], MPI.SUM)
+
+        if numpy.all(id_count <= 1):
+            return dsa.VTKCompositeDataArray(results, dataset=dataset)
 
         # Now that we know which blocks are shared by more than
         # 1 rank. The ones that have a count of 2 or more.
         reduce_ids = []
-        for _id in ids:
-            if id_cout[_id] > 1:
+        for _id in xrange(len(id_count)):
+            if id_count[_id] > 1:
                 reduce_ids.append(_id)
 
         to_reduce = len(reduce_ids)
         # If not block is shared, short circuit. No need to
         # communicate any more.
         if to_reduce == 0:
-            return dsa.VTKCompositeDataArray(results, dataset=array.DataSet)
+            return dsa.VTKCompositeDataArray(results, dataset=dataset)
 
         # Create the local array that will be used for
         # reduction. Set it to a value that won't effect
         # the reduction.
-        lresults = numpy.empty(max_comps*to_reduce)
+        lresults = numpy.empty(size*to_reduce)
         lresults.fill(impl.default())
 
         # Just get non-empty ids. Doing this again in case
         # the traversal above results in a different order.
         # We need the same order since we'll use izip below.
-        it = array.DataSet.NewIterator()
-        it.UnRegister(None)
-        ids = []
-        while not it.IsDoneWithTraversal():
-            ids.append(it.GetCurrentFlatIndex())
-            it.GoToNextItem()
+        if dataset is not None:
+            it = dataset.NewIterator()
+            it.UnRegister(None)
+            ids = []
+            while not it.IsDoneWithTraversal():
+                ids.append(it.GetCurrentFlatIndex())
+                it.GoToNextItem()
 
         # Fill the local array with available values.
         for _id, _res in itertools.izip(ids, results):
@@ -306,11 +337,15 @@ def global_per_block(impl, array, axis=None, controller=None):
             except ValueError:
                 success = False
             if success:
-                lresults[loc*max_comps:(loc+1)*max_comps] = _res.flatten()
+                if _res is not dsa.NoneArray:
+                    lresults[loc*size:(loc+1)*size] = _res.flatten()
 
         # Now do the MPI reduction.
         rresults = numpy.array(lresults)
         comm.Allreduce([lresults, MPI.DOUBLE], [rresults, MPI.DOUBLE], impl.mpi_op())
+
+        if array is dsa.NoneArray:
+            return dsa.NoneArray
 
         # Fill in the reduced values.
         for i in xrange(to_reduce):
@@ -321,13 +356,12 @@ def global_per_block(impl, array, axis=None, controller=None):
             except ValueError:
                 success = False
             if success:
-                a = results[loc]
-                if len(a.shape) == 0:
+                if size == 1:
                     results[loc] = dsa.VTKArray(rresults[i])
                 else:
-                    results[loc][:] = rresults[i*max_comps:(i+1)*max_comps].reshape(a.shape)
+                    results[loc] = rresults[i*size:(i+1)*size].reshape(max_dims)
 
-    return dsa.VTKCompositeDataArray(results, dataset=array.DataSet)
+    return dsa.VTKCompositeDataArray(results, dataset=dataset)
 
 def max_per_block(array, axis=None, controller=None):
     class MaxPerBlockImpl:
@@ -497,6 +531,7 @@ where = make_ufunc(numpy.where)
 expand_dims = make_dfunc(numpy.expand_dims)
 
 abs = make_ufunc(algs.abs)
+abs.__doc__ = "Add documentation here"
 area = make_dsfunc2(algs.area)
 aspect = make_dsfunc2(algs.aspect)
 aspect_gamma = make_dsfunc2(algs.aspect_gamma)
