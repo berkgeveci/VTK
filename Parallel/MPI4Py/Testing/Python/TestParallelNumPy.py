@@ -21,11 +21,15 @@ rank = c.GetLocalProcessId()
 size = c.GetNumberOfProcesses()
 
 def PRINT(text, values):
-    res = numpy.array(values, dtype=numpy.float64)
+    if values is dsa.NoneArray:
+        values = numpy.array(0, dtype=numpy.float64)
+    else:
+        values = numpy.array(numpy.sum(values)).astype(numpy.float64)
+    res = numpy.array(values)
     MPI.COMM_WORLD.Allreduce([values, MPI.DOUBLE], [res, MPI.DOUBLE], MPI.SUM)
-    assert numpy.abs(numpy.sum(res)) < 1E-5
+    assert numpy.abs(res) < 1E-5
     if rank == 0:
-        print text, numpy.sum(res)
+        print text, res
 
 def testArrays(rtData, rtData2, grad, grad2, total_npts):
     " Test various parallel algorithms."
@@ -158,3 +162,86 @@ rtData3 = dsa.VTKCompositeDataArray([datasets[0].PointData['RTData'], datasets[1
 grad3 = dsa.VTKCompositeDataArray([datasets[0].PointData['gradient'], datasets[1].PointData['gradient']])
 
 testArrays(rtData3, rtData2, grad3, grad2, total_npts)
+
+# Test min/max per block
+NUM_BLOCKS = 10
+
+w = vtk.vtkRTAnalyticSource()
+w.SetWholeExtent(0, 10, 0, 10, 0, 10)
+w.Update()
+
+c = vtk.vtkMultiBlockDataSet()
+c.SetNumberOfBlocks(2*NUM_BLOCKS)
+
+if rank == 0:
+    start = 0
+    end = NUM_BLOCKS
+else:
+    start = rank*NUM_BLOCKS - 3
+    end = start + NUM_BLOCKS
+
+for i in xrange(start, end):
+    a = vtk.vtkImageData()
+    a.ShallowCopy(w.GetOutput())
+    c.SetBlock(i, a)
+
+if rank == 0:
+    c.SetBlock(NUM_BLOCKS - 1, vtk.vtkPolyData())
+
+cdata = dsa.WrapDataObject(c)
+rtdata = cdata.PointData['RTData']
+rtdata = algs.abs(rtdata)
+g = algs.gradient(rtdata)
+g2 = algs.gradient(g)
+
+res = True
+dummy = vtk.vtkDummyController()
+for axis in [None, 0]:
+    for array in [rtdata, g, g2]:
+        if rank == 0:
+            array2 = array/2
+            min = algs.min_per_block(array2, axis=axis)
+            res &= numpy.all(min.Arrays[NUM_BLOCKS - 1] == numpy.min(array, axis=axis))
+            all_min = algs.min(min, controller=dummy)
+            all_min_true = numpy.min([algs.min(array, controller=dummy), algs.min(array2, controller=dummy)])
+            res &= all_min == all_min_true
+            max = algs.max_per_block(array2, axis=axis)
+            res &= numpy.all(max.Arrays[NUM_BLOCKS - 1] == numpy.max(array, axis=axis))
+            all_max = algs.max(max, controller=dummy)
+            all_max_true = numpy.max([algs.max(array, controller=dummy), algs.max(array2, controller=dummy)])
+            res &= all_max == all_max_true
+        elif rank == 2:
+            min = algs.min_per_block(dsa.NoneArray, axis=axis)
+            max = algs.max_per_block(dsa.NoneArray, axis=axis)
+        else:
+            min = algs.min_per_block(array, axis=axis)
+            max = algs.max_per_block(array, axis=axis)
+
+res &= algs.min_per_block(dsa.NoneArray) is dsa.NoneArray
+
+if rank == 0:
+    min = algs.min_per_block(rtdata.Arrays[0]/2)
+elif rank == 2:
+    min = algs.min_per_block(dsa.NoneArray)
+    res &= min is dsa.NoneArray
+else:
+    min = algs.min_per_block(rtdata.Arrays[0])
+
+if rank == 0:
+    min = algs.min(rtdata.Arrays[0])
+    res &= min == numpy.min(rtdata.Arrays[0])
+else:
+    min = algs.min(dsa.NoneArray)
+    res &= min is dsa.NoneArray
+
+res &= algs.min(dsa.NoneArray) is dsa.NoneArray
+
+if rank == 0:
+    res &= numpy.all(algs.min(g2, axis=0) == numpy.min(g2.Arrays[0], axis=0))
+else:
+    res &= algs.min(dsa.NoneArray, axis=0) is dsa.NoneArray
+
+res = numpy.array(res, dtype=numpy.bool)
+all_res = numpy.array(res)
+MPI.COMM_WORLD.Allreduce([res, MPI.BOOL], [all_res, MPI.BOOL], MPI.LAND)
+assert all_res

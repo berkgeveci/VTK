@@ -156,6 +156,8 @@ def global_func(impl, array, axis, controller):
             res_recv = numpy.array(res)
             mpi_type = _lookup_mpi_type(res.dtype)
             comm.Allreduce([res, mpi_type], [res_recv, mpi_type], impl.mpi_op())
+            if array is dsa.NoneArray:
+                return dsa.NoneArray
             res = res_recv
 
     return res
