@@ -41,7 +41,8 @@ if (catch.catch(globals(),"""channel = open("test.tmp", "w")""") == 0):
     # Remove ghost cells
     mapper.GetInput().RemoveGhostCells()
     w = vtk.vtkDataSetWriter()
-    w.SetInputData(mapper.GetInput())
+#    w.SetInputData(mapper.GetInput())
+    w.SetInputData(surface.GetInput())
     w.SetFileName("foo.vtk")
     w.SetFileTypeToASCII()
     w.Write()

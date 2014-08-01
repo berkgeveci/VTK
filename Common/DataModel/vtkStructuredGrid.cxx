@@ -30,6 +30,9 @@
 
 vtkStandardNewMacro(vtkStructuredGrid);
 
+unsigned char vtkStructuredGrid::MASKED_CELL_VALUE =
+  vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::REFINEDCELL;
+
 #define vtkAdjustBoundsMacro( A, B ) \
   A[0] = (B[0] < A[0] ? B[0] : A[0]);   A[1] = (B[0] > A[1] ? B[0] : A[1]); \
   A[2] = (B[1] < A[2] ? B[1] : A[2]);   A[3] = (B[1] > A[3] ? B[1] : A[3]); \
@@ -600,7 +603,7 @@ void vtkStructuredGrid::BlankCell(vtkIdType cellId)
     this->AllocateCellGhostArray();
     ghosts = this->GetCellGhostArray();
     }
-  ghosts->SetValue(cellId, ghosts->GetValue(cellId) | vtkDataSetAttributes::HIDDENCELL);
+  ghosts->SetValue(cellId, ghosts->GetValue(cellId) | MASKED_CELL_VALUE);
   assert(!this->IsCellVisible(cellId));
 }
 
@@ -611,7 +614,7 @@ void vtkStructuredGrid::UnBlankCell(vtkIdType cellId)
   vtkUnsignedCharArray *ghosts = this->GetCellGhostArray();
   if(ghosts)
     {
-    ghosts->SetValue(cellId, ghosts->GetValue(cellId) & ~vtkDataSetAttributes::HIDDENCELL);
+    ghosts->SetValue(cellId, ghosts->GetValue(cellId) & ~MASKED_CELL_VALUE);
     }
   assert(this->IsCellVisible(cellId));
 }
@@ -665,7 +668,7 @@ void vtkStructuredGrid::GetCellDims( int cellDims[3] )
 // Return non-zero if the specified cell is visible (i.e., not blanked)
 unsigned char vtkStructuredGrid::IsCellVisible(vtkIdType cellId)
 {
-  if(this->GetCellGhostArray() && (this->GetCellGhostArray()->GetValue(cellId) & vtkDataSetAttributes::HIDDENCELL))
+  if(this->GetCellGhostArray() && (this->GetCellGhostArray()->GetValue(cellId) & MASKED_CELL_VALUE))
     {
     return 0;
     }

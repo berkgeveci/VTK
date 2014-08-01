@@ -195,12 +195,13 @@ protected:
 
   vtkEmptyCell* GetEmptyCell();
 
-
 private:
   vtkUniformGrid(const vtkUniformGrid&);  // Not implemented.
   void operator=(const vtkUniformGrid&);  // Not implemented.
 
   vtkEmptyCell *EmptyCell;
+
+  static unsigned char MASKED_CELL_VALUE;
 };
 
 

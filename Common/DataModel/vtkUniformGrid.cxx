@@ -34,6 +34,9 @@
 
 vtkStandardNewMacro(vtkUniformGrid);
 
+unsigned char vtkUniformGrid::MASKED_CELL_VALUE =
+  vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::REFINEDCELL;
+
 //----------------------------------------------------------------------------
 vtkUniformGrid::vtkUniformGrid()
 {
@@ -811,7 +814,7 @@ void vtkUniformGrid::BlankCell(vtkIdType cellId)
     this->AllocateCellGhostArray();
     ghost = this->GetCellGhostArray();
     }
-  ghost->SetValue(cellId, ghost->GetValue(cellId) | vtkDataSetAttributes::HIDDENCELL);
+  ghost->SetValue(cellId, ghost->GetValue(cellId) | MASKED_CELL_VALUE);
   assert(!this->IsCellVisible(cellId));
 }
 
@@ -835,7 +838,7 @@ void vtkUniformGrid::UnBlankCell(vtkIdType cellId)
     {
     return;
     }
-  ghosts->SetValue(cellId, ghosts->GetValue(cellId) & ~vtkDataSetAttributes::HIDDENCELL);
+  ghosts->SetValue(cellId, ghosts->GetValue(cellId) & ~MASKED_CELL_VALUE);
   assert(this->IsCellVisible(cellId));
 }
 
@@ -880,7 +883,8 @@ unsigned char vtkUniformGrid::IsPointVisible(vtkIdType pointId)
 unsigned char vtkUniformGrid::IsCellVisible(vtkIdType cellId)
 {
 
-  if (this->GetCellGhostArray() && (this->GetCellGhostArray()->GetValue(cellId) & vtkDataSetAttributes::HIDDENCELL))
+  if (this->GetCellGhostArray() && (this->GetCellGhostArray()->GetValue(cellId) &
+       MASKED_CELL_VALUE))
     {
     return 0;
     }

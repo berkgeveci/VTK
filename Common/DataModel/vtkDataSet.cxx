@@ -492,7 +492,7 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
         {
         dk = zeroExt[4] - k;
         }
-      if (k >= zeroExt[5])
+      if (k > zeroExt[5])
         { // Special case for last tile.
         dk = k - zeroExt[5] + 1;
         }
@@ -503,7 +503,7 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
           {
           dj = zeroExt[2] - j;
           }
-        if (j >= zeroExt[3])
+        if (j > zeroExt[3])
           { // Special case for last tile.
           dj = j - zeroExt[3] + 1;
           }
@@ -514,7 +514,7 @@ void vtkDataSet::GenerateGhostLevelArray(int zeroExt[6])
             {
             di = zeroExt[0] - i;
             }
-          if (i >= zeroExt[1])
+          if (i > zeroExt[1])
             { // Special case for last tile.
             di = i - zeroExt[1] + 1;
             }

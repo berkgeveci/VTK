@@ -473,47 +473,47 @@ void vtkAMRUtilities::BlankGridsAtLevel(vtkOverlappingAMR* amr, int levelIdx,
       }
     N = grid->GetNumberOfCells();
 
-    vtkUnsignedCharArray* vis = vtkUnsignedCharArray::New();
-    vis->SetName("visibility");
-    vis->SetNumberOfTuples( N );
-    vis->FillComponent(0,static_cast<char>(1));
-    grid->SetCellVisibilityArray(vis);
-    vis->Delete();
+    vtkUnsignedCharArray *ghosts = vtkUnsignedCharArray::New();
+    ghosts->SetNumberOfTuples(N);
+    ghosts->FillComponent(0, 0);
 
-    if (children.size() <= dataSetIdx)
-      continue;
-
-    std::vector<unsigned int>& dsChildren = children[dataSetIdx];
-    std::vector<unsigned int>::iterator iter;
-
-    // For each higher res box fill in the cells that
-    // it covers
-    for (iter=dsChildren.begin(); iter!=dsChildren.end(); iter++)
+    if (children.size() > dataSetIdx)
       {
-      vtkAMRBox ibox;;
-      int childGridIndex  = amr->GetCompositeIndex(levelIdx+1, *iter);
-      if(processMap[childGridIndex]<0)
+      std::vector<unsigned int>& dsChildren = children[dataSetIdx];
+      std::vector<unsigned int>::iterator iter;
+
+      // For each higher res box fill in the cells that
+      // it covers
+      for (iter=dsChildren.begin(); iter!=dsChildren.end(); iter++)
         {
-        continue;
-        }
-      if (amr->GetAMRInfo()->GetCoarsenedAMRBox(levelIdx+1, *iter, ibox))
-        {
-        ibox.Intersect(box);
-        const int *loCorner=ibox.GetLoCorner();
-        int hi[3];
-        ibox.GetValidHiCorner(hi);
-        for( int iz=loCorner[2]; iz<=hi[2]; iz++ )
+        vtkAMRBox ibox;;
+        int childGridIndex  = amr->GetCompositeIndex(levelIdx+1, *iter);
+        if(processMap[childGridIndex]<0)
           {
-          for( int iy=loCorner[1]; iy<=hi[1]; iy++ )
+          continue;
+          }
+        if (amr->GetAMRInfo()->GetCoarsenedAMRBox(levelIdx+1, *iter, ibox))
+          {
+          ibox.Intersect(box);
+          const int *loCorner=ibox.GetLoCorner();
+          int hi[3];
+          ibox.GetValidHiCorner(hi);
+          for( int iz=loCorner[2]; iz<=hi[2]; iz++ )
             {
-            for( int ix=loCorner[0]; ix<=hi[0]; ix++ )
+            for( int iy=loCorner[1]; iy<=hi[1]; iy++ )
               {
-              vtkIdType id =  vtkAMRBox::GetCellLinearIndex(box,ix, iy, iz, grid->GetDimensions());
-              vis->SetValue(id, 0);
-              } // END for x
-            } // END for y
-          } // END for z
-        }
-      } // Processing all higher boxes for a specific coarse grid
+              for( int ix=loCorner[0]; ix<=hi[0]; ix++ )
+                {
+                vtkIdType id =  vtkAMRBox::GetCellLinearIndex(box,ix, iy, iz, grid->GetDimensions());
+                ghosts->SetValue(id, ghosts->GetValue(id) | vtkDataSetAttributes::REFINEDCELL);
+                } // END for x
+              } // END for y
+            } // END for z
+          }
+        } // Processing all higher boxes for a specific coarse grid
+      }
+
+    grid->SetCellGhostArray(ghosts);
+    ghosts->Delete();
     }
 }
