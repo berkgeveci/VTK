@@ -3,83 +3,51 @@ import numpy
 from vtk.util import numpy_support
 import vtk
 
-def _cell_derivatives (narray, dataset, attribute_type, filter):
+def _derivatives (narray, dataset, filter, varname):
     if not dataset :
-       raise RuntimeError, 'Need a dataset to compute _cell_derivatives.'
+       raise RuntimeError, 'Need a dataset to compute _derivatives.'
 
     # Reshape n dimensional vector to n by 1 matrix
     if len(narray.shape) == 1 :
-       narray = narray.reshape((narray.shape[0], 1))
-
-    ncomp = narray.shape[1]
-    if attribute_type == 'scalars' and ncomp != 1 :
-       raise RuntimeError, 'This function expects scalars.'\
-                           'Input shape ' + narray.shape
-    if attribute_type == 'vectors' and ncomp != 3 :
-       raise RuntimeError, 'This function expects vectors.'\
-                           'Input shape ' + narray.shape
+        narray = narray.reshape((narray.shape[0], 1))
 
     # numpy_to_vtk converts only contiguous arrays
     if not narray.flags.contiguous : narray = narray.copy()
     varray = numpy_support.numpy_to_vtk(narray)
 
-    if attribute_type == 'scalars': varray.SetName('scalars')
-    else : varray.SetName('vectors')
+    varray.SetName('to_process')
 
     # create a dataset with only our array but the same geometry/topology
     ds = dataset.NewInstance()
     ds.UnRegister(None)
     ds.CopyStructure(dataset.VTKObject)
 
-    if dsa.ArrayAssociation.FIELD == narray.Association :
-       raise RuntimeError, 'Unknown data association. Data should be associated with points or cells.'
-
     if dsa.ArrayAssociation.POINT == narray.Association :
-       # Work on point data
-       if narray.shape[0] != dataset.GetNumberOfPoints() :
-          raise RuntimeError, 'The number of points does not match the number of tuples in the array'
-       if attribute_type == 'scalars': ds.GetPointData().SetScalars(varray)
-       else : ds.GetPointData().SetVectors(varray)
+        # Work on point data
+        if narray.shape[0] != dataset.GetNumberOfPoints() :
+            raise RuntimeError, 'The number of points does not match the number of tuples in the array'
+        ds.GetPointData().AddArray(varray)
+        assoc = vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS
     elif dsa.ArrayAssociation.CELL == narray.Association :
-       # Work on cell data
-       if narray.shape[0] != dataset.GetNumberOfCells() :
-          raise RuntimeError, 'The number of does not match the number of tuples in the array'
-
-       # Since vtkCellDerivatives only works with point data, we need to convert
-       # the cell data to point data first.
-
-       ds2 = dataset.NewInstance()
-       ds2.UnRegister(None)
-       ds2.CopyStructure(dataset.VTKObject)
-
-       if attribute_type == 'scalars' : ds2.GetCellData().SetScalars(varray)
-       else : ds2.GetCellData().SetVectors(varray)
-
-       c2p = vtk.vtkCellDataToPointData()
-       c2p.SetInputData(ds2)
-       c2p.Update()
-
-       # Set the output to the ds dataset
-       if attribute_type == 'scalars':
-          ds.GetPointData().SetScalars(c2p.GetOutput().GetPointData().GetScalars())
-       else:
-          ds.GetPointData().SetVectors(c2p.GetOutput().GetPointData().GetVectors())
+        # Work on cell data
+        if narray.shape[0] != dataset.GetNumberOfCells() :
+            raise RuntimeError, 'The number of does not match the number of tuples in the array'
+        ds.GetCellData().AddArray(varray)
+        assoc = vtk.vtkDataObject.FIELD_ASSOCIATION_CELLS
+    else:
+       raise RuntimeError, 'Unknown data association. Data should be associated with points or cells.'
 
     filter.SetInputData(ds)
+    filter.SetInputArrayToProcess(0, 0, 0, assoc, "to_process")
+    filter.Update()
 
     if dsa.ArrayAssociation.POINT == narray.Association :
-       # Since the data is associated with cell and the query is on points
-       # we have to convert to point data before returning
-       c2p = vtk.vtkCellDataToPointData()
-       c2p.SetInputConnection(filter.GetOutputPort())
-       c2p.Update()
-       return c2p.GetOutput().GetPointData()
+        return filter.GetOutput().GetPointData().GetArray(varname)
     elif dsa.ArrayAssociation.CELL == narray.Association :
-       filter.Update()
-       return filter.GetOutput().GetCellData()
+        return filter.GetOutput().GetCellData().GetArray(varname)
     else :
-       # We shall never reach here
-       raise RuntimeError, 'Unknown data association. Data should be associated with points or cells.'
+        # We shall never reach here
+        raise RuntimeError, 'Unknown data association. Data should be associated with points or cells.'
 
 def _cell_quality (dataset, quality) :
     if not dataset : raise RuntimeError, 'Need a dataset to compute _cell_quality'
@@ -225,12 +193,11 @@ def curl (narray, dataset=None):
        raise RuntimeError, 'Curl only works with an array of 3D vectors.'\
                            'Input shape ' + narray.shape
 
-    cd = vtk.vtkCellDerivatives()
-    cd.SetVectorModeToComputeVorticity()
+    cd = vtk.vtkGradientFilter()
+    cd.SetComputeVorticity(1)
+    cd.SetFasterApproximation(1)
 
-    res = _cell_derivatives(narray, dataset, 'vectors', cd)
-
-    retVal = res.GetVectors()
+    retVal = _derivatives(narray, dataset, cd, "Vorticity")
     retVal.SetName("vorticity")
 
     ans = dsa.vtkDataArrayToVTKArray(retVal, dataset)
@@ -289,7 +256,7 @@ def eigenvector (narray) :
     "Returns the eigenvector of an array of 2D square matrices."
     return _matrix_math_filter(narray, "Eigenvector")
 
-def gradient(narray, dataset=None):
+def faster_gradient(narray, dataset=None):
     "Returns the gradient of an array of scalars/vectors."
     if not dataset: dataset = narray.DataSet
     if not dataset: raise RuntimeError, 'Need a dataset to compute gradient'
@@ -302,14 +269,37 @@ def gradient(narray, dataset=None):
        raise RuntimeError, 'Gradient only works with scalars (1 component) and vectors (3 component)'\
                            'Input shape ' + narray.shape
 
-    cd = vtk.vtkCellDerivatives()
-    if ncomp == 1 : attribute_type = 'scalars'
-    else : attribute_type = 'vectors'
+    cd = vtk.vtkGradientFilter()
+    cd.SetFasterApproximation(1)
 
-    res = _cell_derivatives(narray, dataset, attribute_type, cd)
+    retVal = _derivatives(narray, dataset, cd, "Gradients")
 
-    if ncomp == 1 : retVal = res.GetVectors()
-    else : retVal = res.GetTensors()
+    try:
+        if narray.GetName() : retVal.SetName("gradient of " + narray.GetName())
+        else : retVal.SetName("gradient")
+    except AttributeError : retVal.SetName("gradient")
+
+    ans = dsa.vtkDataArrayToVTKArray(retVal, dataset)
+
+    # The association information has been lost over the vtk filter
+    # we must reconstruct it otherwise lower pipeline will be broken.
+    ans.Association = narray.Association
+
+    return ans
+
+def gradient(narray, dataset=None):
+    "Returns the gradient of an array of scalars/vectors."
+    if not dataset: dataset = narray.DataSet
+    if not dataset: raise RuntimeError, 'Need a dataset to compute gradient'
+
+    try:
+      ncomp = narray.shape[1]
+    except IndexError:
+      ncomp = 1
+
+    cd = vtk.vtkGradientFilter()
+
+    retVal = _derivatives(narray, dataset, cd, "Gradients")
 
     try:
         if narray.GetName() : retVal.SetName("gradient of " + narray.GetName())
@@ -395,6 +385,29 @@ def norm (a) :
     "Returns the normalized values of an array of scalars/vectors."
     return a/mag(a).reshape((a.shape[0], 1))
 
+def qcriterion (narray, dataset=None) :
+    "Returns the Q criterion of an array of 3D vectors."
+    if not dataset : dataset = narray.DataSet
+    if not dataset : raise RuntimeError, 'Need a dataset to compute strain'
+
+    if 2 != narray.ndim or 3 != narray.shape[1] :
+       raise RuntimeError, 'strain only works with an array of 3D vectors'\
+                           'Input shape ' + narray.shape
+
+    cd = vtk.vtkGradientFilter()
+    cd.SetComputeQCriterion(1)
+
+    retVal = _derivatives(narray, dataset, cd, "Q-criterion")
+    retVal.SetName("q-criterion")
+
+    ans = dsa.vtkDataArrayToVTKArray(retVal, dataset)
+
+    # The association information has been lost over the vtk filter
+    # we must reconstruct it otherwise lower pipeline will be broken.
+    ans.Association = narray.Association
+
+    return ans
+
 def shear (dataset) :
     "Returns the shear of each cell in a dataset."
     return _cell_quality(dataset, "shear")
@@ -412,12 +425,10 @@ def strain (narray, dataset=None) :
        raise RuntimeError, 'strain only works with an array of 3D vectors'\
                            'Input shape ' + narray.shape
 
-    cd = vtk.vtkCellDerivatives()
-    cd.SetTensorModeToComputeStrain()
+    cd = vtk.vtkGradientFilter()
+    cd.SetComputeStrain(1)
 
-    res = _cell_derivatives(narray, dataset, 'vectors', cd)
-
-    retVal = res.GetTensors()
+    retVal = _derivatives(narray, dataset, cd, "Strain")
     retVal.SetName("strain")
 
     ans = dsa.vtkDataArrayToVTKArray(retVal, dataset)

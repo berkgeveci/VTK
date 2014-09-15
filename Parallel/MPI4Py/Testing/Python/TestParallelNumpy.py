@@ -27,9 +27,9 @@ def PRINT(text, values):
         values = numpy.array(numpy.sum(values)).astype(numpy.float64)
     res = numpy.array(values)
     MPI.COMM_WORLD.Allreduce([values, MPI.DOUBLE], [res, MPI.DOUBLE], MPI.SUM)
-    assert numpy.abs(res) < 1E-5
     if rank == 0:
         print text, res
+    assert numpy.abs(res) < 2E-5
 
 def testArrays(rtData, rtData2, grad, grad2, total_npts):
     " Test various parallel algorithms."
@@ -50,11 +50,11 @@ def testArrays(rtData, rtData2, grad, grad2, total_npts):
     PRINT( "grad max:", algs.max(grad) - numpy.max(grad2) )
     PRINT( "grad min 0:", algs.min(grad, 0) - numpy.min(grad2, 0) )
     PRINT( "grad max 0:", algs.max(grad, 0) - numpy.max(grad2, 0) )
-    PRINT( "grad min 1:", algs.sum(algs.min(grad, 1)) - numpy.sum(numpy.min(grad2, 1)) )
-    PRINT( "grad max 1:", algs.sum(algs.max(grad, 1)) - numpy.sum(numpy.max(grad2, 1)) )
-    PRINT( "grad sum 1:", algs.sum(algs.sum(grad, 1)) - numpy.sum(numpy.sum(grad2, 1)) )
-    PRINT( "grad var:", (algs.var(grad) - numpy.var(grad2)) / numpy.var(grad2) )
-    PRINT( "grad var 0:", (algs.var(grad, 0) - numpy.var(grad2, 0)) / numpy.var(grad2, 0) )
+    PRINT( "grad min 1:", (algs.sum(algs.min(grad, 1)) - numpy.sum(numpy.min(grad2, 1).astype(numpy.float64))) / numpy.sum(numpy.min(grad2, 1)))
+    PRINT( "grad max 1:", (algs.sum(algs.max(grad, 1)) - numpy.sum(numpy.max(grad2, 1).astype(numpy.float64)))/ numpy.sum(numpy.max(grad2, 1)) )
+    PRINT( "grad sum 1:", ( algs.sum(algs.sum(grad, 1)) - numpy.sum(numpy.sum(grad2, 1).astype(numpy.float64)) ) / numpy.sum(numpy.sum(grad2, 1)) )
+    PRINT( "grad var:", (algs.var(grad) - numpy.var(grad2.astype(numpy.float64))) / numpy.var(grad2) )
+    PRINT( "grad var 0:", (algs.var(grad, 0) - numpy.var(grad2.astype(numpy.float64), 0)) / numpy.var(grad2, 0) )
 
 w = vtk.vtkRTAnalyticSource()
 w.UpdateInformation()
@@ -213,7 +213,7 @@ for axis in [None, 0]:
             sum = algs.sum_per_block(array2, axis=axis)
             sum_true = numpy.sum(array2.Arrays[0]) * (NUM_BLOCKS-1)
             sum_true += numpy.sum(array.Arrays[0]) * 3
-            res &= numpy.sum(algs.sum(sum, controller=dummy) - algs.sum(sum_true, controller=dummy)) == 0
+            res &= (numpy.sum(algs.sum(sum, controller=dummy) - algs.sum(sum_true, controller=dummy))) / algs.sum(sum_true, controller=dummy) < 1E-5
             mean = algs.mean_per_block(array2, axis=axis)
             res &= numpy.sum(mean.Arrays[0] - numpy.mean(array2.Arrays[0], axis=axis)) < 1E-6
             if len(array.Arrays[0].shape) == 1:

@@ -66,6 +66,13 @@ public:
   vtkSetStringMacro(VorticityArrayName);
 
   // Description:
+  // Get/Set the name of the stratin array to create. This is only
+  // used if ComputeStrain is non-zero. If NULL (the
+  // default) then the output array will be named "Strain".
+  vtkGetStringMacro(StrainArrayName);
+  vtkSetStringMacro(StrainArrayName);
+
+  // Description:
   // Get/Set the name of the Q criterion array to create. This is only
   // used if ComputeQCriterion is non-zero. If NULL (the
   // default) then the output array will be named "Q-criterion".
@@ -85,12 +92,21 @@ public:
   vtkBooleanMacro(FasterApproximation, int);
 
   // Description:
-  // Set the resultant array to be vorticity/curl of the input
-  // array.  The input array must have 3 components.
+  // Add vorticity to the output. The name of the array will
+  // be Vorticity (unless overwritten). The array will be of the same type
+  // as the input array.  The input array must have 3 components.
   vtkSetMacro(ComputeVorticity, int);
   vtkGetMacro(ComputeVorticity, int);
   vtkBooleanMacro(ComputeVorticity, int);
 
+  // Description:
+  // Add strain (or strain rate depending on the input vector) to the
+  // output. The names of the array will be Strain (unless overwritten).
+  // The array The array will be of the same type
+  // as the input array.  The input array must have 3 components.
+  vtkSetMacro(ComputeStrain, int);
+  vtkGetMacro(ComputeStrain, int);
+  vtkBooleanMacro(ComputeStrain, int);
   // Description:
   // Add Q-criterion to the output field data.  The name of the array
   // will be "Q-Criterion" and will be the same type as the input
@@ -117,7 +133,8 @@ protected:
   // Returns non-zero if the operation was successful.
   virtual int ComputeUnstructuredGridGradient(
     vtkDataArray* Array, int fieldAssociation, vtkDataSet* input,
-    bool computeVorticity, bool computeQCriterion, vtkDataSet* output);
+    bool computeVorticity, bool computeStrain, bool computeQCriterion,
+    vtkDataSet* output);
 
   // Description:
   // Compute the gradients for either a vtkImageData, vtkRectilinearGrid or
@@ -125,21 +142,26 @@ protected:
   // Returns non-zero if the operation was successful.
   virtual int ComputeRegularGridGradient(
     vtkDataArray* Array, int fieldAssociation, bool computeVorticity,
-    bool computeQCriterion, vtkDataSet* output);
+    bool computeStrain, bool computeQCriterion, vtkDataSet* output);
 
   // Description:
   // If non-null then it contains the name of the outputted gradient array.
-  // By derault it is "Gradients".
+  // By default it is "Gradients".
   char *ResultArrayName;
 
   // Description:
   // If non-null then it contains the name of the outputted vorticity array.
-  // By derault it is "Vorticity".
+  // By default it is "Vorticity".
   char *VorticityArrayName;
 
   // Description:
+  // If non-null then it contains the name of the outputted strain array.
+  // By default it is "Strain".
+  char *StrainArrayName;
+
+  // Description:
   // If non-null then it contains the name of the outputted Q criterion array.
-  // By derault it is "Q-criterion".
+  // By default it is "Q-criterion".
   char *QCriterionArrayName;
 
   // Description:
@@ -163,6 +185,8 @@ protected:
   // be computed.  The input array to be processed must have
   // 3 components.  By default ComputeVorticity is off.
   int ComputeVorticity;
+
+  int ComputeStrain;
 
 private:
   vtkGradientFilter(const vtkGradientFilter &); // Not implemented

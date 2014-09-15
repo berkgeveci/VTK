@@ -892,12 +892,12 @@ def unstructured_from_composite_arrays(points, arrays, controller=None):
     for ca, name in arrays:
         if ca is not dsa.NoneArray:
             da = vtkDoubleArray()
-            ncomps = ca.Arrays[0].flatten().shape[0]
+            ncomps = ca.Arrays[0].ravel().shape[0]
             da.SetNumberOfComponents(ncomps)
             counter = 0
             for a in ca.Arrays:
                 if ownership[ids[counter]] == rank:
-                    a = a.flatten()
+                    a = a.ravel()
                     for i in range(ncomps):
                         da.InsertNextValue(a[i])
                 counter += 1
@@ -1095,6 +1095,9 @@ min_angle.__doc__ = "Returns the minimum angle of each cell in a dataset."
 
 norm = _make_ufunc(algs.norm)
 norm.__doc__ = "Computes the normalized values of vectors."
+
+qcriterion = _make_dsfunc(algs.qcriterion)
+qcriterion.__doc__ = "Given a velocity vector, this function computes the Q criterion."
 
 shear = _make_dsfunc2(algs.shear)
 shear.__doc__ = "Returns the shear of each cell in a dataset. See Verdict documentation for details."

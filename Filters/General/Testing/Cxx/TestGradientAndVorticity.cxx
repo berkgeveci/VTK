@@ -126,17 +126,17 @@ namespace
           {
           if((origComp-gradDir+offset)%3 == 0)
             {
-            if(fabs(values[origComp*3+gradDir]-1.) > Tolerance)
+            if(fabs(values[gradDir*3+origComp]-1.) > Tolerance)
               {
               vtkGenericWarningMacro("Gradient value should be one but is "
-                                     << values[origComp*3+gradDir]);
+                                     << values[gradDir*3+origComp]);
               return 0;
               }
             }
-          else if(fabs(values[origComp*3+gradDir]) > Tolerance)
+          else if(fabs(values[gradDir*3+origComp]) > Tolerance)
             {
             vtkGenericWarningMacro("Gradient value should be zero but is "
-                                   << values[origComp*3+gradDir]);
+                                   << values[gradDir*3+origComp]);
             return 0;
             }
           }
@@ -160,22 +160,22 @@ namespace
       {
       double* g = gradients->GetTuple(i);
       double* v = vorticity->GetTuple(i);
-      if(!ArePointsWithinTolerance(v[0], g[7]-g[5]))
+      if(!ArePointsWithinTolerance(v[0], g[5]-g[7]))
         {
         vtkGenericWarningMacro("Bad vorticity[0] value " << v[0] << " " <<
-                               g[7]-g[5] << " difference is " << (v[0]-g[7]+g[5]));
+                               g[5]-g[7] << " difference is " << (v[0]-g[5]+g[7]));
         return 0;
         }
-      else if(!ArePointsWithinTolerance(v[1], g[2]-g[6]))
+      else if(!ArePointsWithinTolerance(v[1], g[6]-g[2]))
         {
         vtkGenericWarningMacro("Bad vorticity[1] value " << v[1] << " " <<
-                               g[2]-g[6] << " difference is " << (v[1]-g[2]+g[6]));
+                               g[6]-g[2] << " difference is " << (v[1]-g[6]+g[2]));
         return 0;
         }
-      else if(!ArePointsWithinTolerance(v[2], g[3]-g[1]))
+      else if(!ArePointsWithinTolerance(v[2], g[1]-g[3]))
         {
         vtkGenericWarningMacro("Bad vorticity[2] value " << v[2] << " " <<
-                               g[3]-g[1] << " difference is " << (v[2]-g[3]+g[1]));
+                               g[1]-g[3] << " difference is " << (v[2]-g[1]+g[3]));
         return 0;
         }
       }

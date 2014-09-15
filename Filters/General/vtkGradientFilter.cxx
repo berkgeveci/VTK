@@ -47,37 +47,54 @@ vtkStandardNewMacro(vtkGradientFilter);
 
 namespace
 {
-  // helper function to replace the gradient of a vector
-  // with the vorticity/curl of that vector
+// helper function to replace the gradient of a vector
+// with the vorticity/curl of that vector
 //-----------------------------------------------------------------------------
   template<class data_type>
   void ComputeVorticityFromGradient(data_type* gradients, data_type* vorticity)
   {
-    vorticity[0] = gradients[7] - gradients[5];
-    vorticity[1] = gradients[2] - gradients[6];
-    vorticity[2] = gradients[3] - gradients[1];
+    vorticity[0] = gradients[5] - gradients[7];
+    vorticity[1] = gradients[6] - gradients[2];
+    vorticity[2] = gradients[1] - gradients[3];
   }
 
   template<class data_type>
   void ComputeQCriterionFromGradient(data_type* gradients, data_type* qCriterion)
   {
-    data_type t1 = ( (gradients[7]-gradients[5])*(gradients[7]-gradients[5]) +
-                     (gradients[3]-gradients[1])*(gradients[3]-gradients[1]) +
-                     (gradients[2]-gradients[6])*(gradients[2]-gradients[6]) ) / 2;
+    data_type w0 = gradients[5] - gradients[7];
+    data_type w1 = gradients[6] - gradients[2];
+    data_type w2 = gradients[1] - gradients[3];
+
+    data_type s0 = gradients[5] + gradients[7];
+    data_type s1 = gradients[6] + gradients[2];
+    data_type s2 = gradients[1] + gradients[3];
+
+    data_type t1 = ( w0*w0 + w1*w1 + w2*w2 ) / 2;
     data_type t2 = gradients[0]*gradients[0]+gradients[4]*gradients[4]+
-      gradients[8]*gradients[8]+ (
-        (gradients[3]+gradients[1])*(gradients[3]+gradients[1]) +
-        (gradients[6]+gradients[2])*(gradients[6]+gradients[2]) +
-        (gradients[7]+gradients[5])*(gradients[7]+gradients[5]) ) / 2;
+      gradients[8]*gradients[8] + (s0*s0 + s1*s1 + s2*s2) / 2;
 
     qCriterion[0] = (t1 - t2) / 2;
+  }
+
+  template<class data_type>
+  void ComputeStrainFromGradient(data_type* gradients, data_type* strain)
+  {
+    strain[0] = gradients[0];
+    strain[1] = (gradients[1] + gradients[3])/2;
+    strain[2] = (gradients[2] + gradients[6])/2;
+    strain[3] = strain[1];
+    strain[4] = gradients[4];
+    strain[5] = (gradients[5] + gradients[7])/2;
+    strain[6] = strain[2];
+    strain[7] = strain[5];
+    strain[8] = gradients[8];
   }
 
   // Functions for unstructured grids and polydatas
   template<class data_type>
   void ComputePointGradientsUG(
     vtkDataSet *structure, data_type *array, data_type *gradients,
-    int numberOfInputComponents, data_type* vorticity, data_type* qCriterion);
+    int numberOfInputComponents, data_type* vorticity, data_type* strain, data_type* qCriterion);
 
   int GetCellParametricData(
     vtkIdType pointId, double pointCoord[3], vtkCell *cell, int & subId,
@@ -86,13 +103,13 @@ namespace
   template<class data_type>
   void ComputeCellGradientsUG(
     vtkDataSet *structure, data_type *array, data_type *gradients,
-    int numberOfInputComponents, data_type* vorticity, data_type* qCriterion);
+    int numberOfInputComponents, data_type* vorticity, data_type* strain, data_type* qCriterion);
 
   // Functions for image data and structured grids
   template<class Grid, class data_type>
   void ComputeGradientsSG(Grid output, data_type* array, data_type* gradients,
                           int numberOfInputComponents, int fieldAssociation,
-                          data_type* vorticity, data_type* qCriterion);
+                          data_type* vorticity, data_type* strain, data_type* qCriterion);
 
   bool vtkGradientFilterHasArray(vtkFieldData *fieldData,
                                  vtkDataArray *array)
@@ -133,6 +150,7 @@ vtkGradientFilter::vtkGradientFilter()
 {
   this->ResultArrayName = NULL;
   this->VorticityArrayName = NULL;
+  this->StrainArrayName = NULL;
   this->QCriterionArrayName = NULL;
   this->FasterApproximation = 0;
   this->ComputeVorticity = 0;
@@ -146,6 +164,7 @@ vtkGradientFilter::~vtkGradientFilter()
 {
   this->SetResultArrayName(NULL);
   this->SetVorticityArrayName(NULL);
+  this->SetStrainArrayName(NULL);
   this->SetQCriterionArrayName(NULL);
 }
 
@@ -158,10 +177,13 @@ void vtkGradientFilter::PrintSelf(ostream &os, vtkIndent indent)
      << (this->ResultArrayName ? this->ResultArrayName : "Gradients") << endl;
   os << indent << "VorticityArrayName:"
      << (this->VorticityArrayName ? this->VorticityArrayName : "Vorticity") << endl;
+  os << indent << "StrainArrayName:"
+     << (this->StrainArrayName ? this->StrainArrayName : "Strain") << endl;
   os << indent << "QCriterionArrayName:"
      << (this->QCriterionArrayName ? this->QCriterionArrayName : "Q-criterion") << endl;
   os << indent << "FasterApproximation:" << this->FasterApproximation << endl;
   os << indent << "ComputeVorticity:" << this->ComputeVorticity << endl;
+  os << indent << "ComputeStrain:" << this->ComputeStrain << endl;
   os << indent << "ComputeQCriterion:" << this->ComputeQCriterion << endl;
 }
 
@@ -262,6 +284,7 @@ int vtkGradientFilter::RequestData(vtkInformation *vtkNotUsed(request),
   // this we only mark internally the we aren't computing them
   // since we don't want to change the state of the filter.
   bool computeVorticity = this->ComputeVorticity != 0;
+  bool computeStrain = this->ComputeStrain != 0;
   bool computeQCriterion = this->ComputeQCriterion != 0;
   if( (this->ComputeQCriterion || this->ComputeVorticity)
       && array->GetNumberOfComponents() != 3)
@@ -270,6 +293,7 @@ int vtkGradientFilter::RequestData(vtkInformation *vtkNotUsed(request),
                     << "with ComputeVorticity or ComputeQCriterion flag turned "
                     << "on. Skipping vorticity and Q-criterion computation.");
     computeVorticity = false;
+    computeStrain = false;
     computeQCriterion = false;
     }
 
@@ -296,12 +320,12 @@ int vtkGradientFilter::RequestData(vtkInformation *vtkNotUsed(request),
           output->IsA("vtkRectilinearGrid") )
     {
     this->ComputeRegularGridGradient(
-      array, fieldAssociation, computeVorticity, computeQCriterion, output);
+      array, fieldAssociation, computeVorticity, computeStrain, computeQCriterion, output);
     }
   else
     {
     this->ComputeUnstructuredGridGradient(
-      array, fieldAssociation, input, computeVorticity, computeQCriterion, output);
+      array, fieldAssociation, input, computeVorticity, computeStrain, computeQCriterion, output);
     }
 
   // If necessary, remove a layer of ghost cells.
@@ -331,7 +355,8 @@ int vtkGradientFilter::RequestData(vtkInformation *vtkNotUsed(request),
 //-----------------------------------------------------------------------------
 int vtkGradientFilter::ComputeUnstructuredGridGradient(
   vtkDataArray* array, int fieldAssociation, vtkDataSet* input,
-  bool computeVorticity, bool computeQCriterion, vtkDataSet* output)
+  bool computeVorticity, bool computeStrain, bool computeQCriterion,
+  vtkDataSet* output)
 {
   vtkDataArray *gradients
     = vtkDataArray::CreateDataArray(array->GetDataType());
@@ -359,6 +384,21 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
     else
       {
       vorticity->SetName("Vorticity");
+      }
+    }
+  vtkSmartPointer<vtkDataArray> strain;
+  if(computeStrain)
+    {
+    strain.TakeReference(vtkDataArray::CreateDataArray(array->GetDataType()));
+    strain->SetNumberOfComponents(9);
+    strain->SetNumberOfTuples(array->GetNumberOfTuples());
+    if (this->StrainArrayName)
+      {
+      strain->SetName(this->StrainArrayName);
+      }
+    else
+      {
+      strain->SetName("Strain");
       }
     }
   vtkSmartPointer<vtkDataArray> qCriterion;
@@ -389,6 +429,8 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
                            numberOfInputComponents,
                            (vorticity == NULL ? NULL :
                             static_cast<VTK_TT *>(vorticity->GetVoidPointer(0))),
+                           (strain == NULL ? NULL :
+                            static_cast<VTK_TT *>(strain->GetVoidPointer(0))),
                            (qCriterion == NULL ? NULL :
                             static_cast<VTK_TT *>(qCriterion->GetVoidPointer(0)))));
         }
@@ -397,6 +439,10 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
       if(vorticity)
         {
         output->GetPointData()->AddArray(vorticity);
+        }
+      if(strain)
+        {
+        output->GetPointData()->AddArray(strain);
         }
       if(qCriterion)
         {
@@ -423,6 +469,8 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
             numberOfInputComponents,
             (vorticity == NULL ? NULL :
              static_cast<VTK_TT *>(vorticity->GetVoidPointer(0))),
+            (strain == NULL ? NULL :
+             static_cast<VTK_TT *>(strain->GetVoidPointer(0))),
             (qCriterion == NULL ? NULL :
              static_cast<VTK_TT *>(qCriterion->GetVoidPointer(0)))));
         }
@@ -434,6 +482,10 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
       if(vorticity)
         {
         dummy->GetCellData()->AddArray(vorticity);
+        }
+      if(strain)
+        {
+        dummy->GetCellData()->AddArray(strain);
         }
       if(qCriterion)
         {
@@ -449,9 +501,23 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
       vtkDataArray *pointGradients
         = cd2pd->GetOutput()->GetPointData()->GetArray(gradients->GetName());
       output->GetPointData()->AddArray(pointGradients);
+      if(vorticity)
+        {
+        vtkDataArray *pointVorticity
+          = cd2pd->GetOutput()->GetPointData()->GetArray(vorticity->GetName());
+        output->GetPointData()->AddArray(pointVorticity);
+        }
+      if(strain)
+        {
+        vtkDataArray *pointStrain
+          = cd2pd->GetOutput()->GetPointData()->GetArray(strain->GetName());
+        output->GetPointData()->AddArray(pointStrain);
+        }
       if(qCriterion)
         {
-        output->GetPointData()->AddArray(qCriterion);
+        vtkDataArray *pointQCriterion
+          = cd2pd->GetOutput()->GetPointData()->GetArray(qCriterion->GetName());
+        output->GetPointData()->AddArray(pointQCriterion);
         }
       cd2pd->Delete();
       dummy->Delete();
@@ -484,6 +550,8 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
                          numberOfInputComponents,
                          (vorticity == NULL ? NULL :
                           static_cast<VTK_TT *>(vorticity->GetVoidPointer(0))),
+                         (strain == NULL ? NULL :
+                          static_cast<VTK_TT *>(strain->GetVoidPointer(0))),
                          (qCriterion == NULL ? NULL :
                           static_cast<VTK_TT *>(qCriterion->GetVoidPointer(0)))));
       }
@@ -492,6 +560,10 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
     if(vorticity)
       {
       output->GetCellData()->AddArray(vorticity);
+      }
+    if(strain)
+      {
+      output->GetCellData()->AddArray(strain);
       }
     if(qCriterion)
       {
@@ -508,7 +580,7 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(
 //-----------------------------------------------------------------------------
 int vtkGradientFilter::ComputeRegularGridGradient(
   vtkDataArray* array, int fieldAssociation, bool computeVorticity,
-  bool computeQCriterion, vtkDataSet* output)
+  bool computeStrain, bool computeQCriterion, vtkDataSet* output)
 {
   vtkDataArray *gradients
     = vtkDataArray::CreateDataArray(array->GetDataType());
@@ -538,6 +610,21 @@ int vtkGradientFilter::ComputeRegularGridGradient(
       vorticity->SetName("Vorticity");
       }
     }
+  vtkSmartPointer<vtkDataArray> strain;
+  if(computeStrain)
+    {
+    strain.TakeReference(vtkDataArray::CreateDataArray(array->GetDataType()));
+    strain->SetNumberOfComponents(9);
+    strain->SetNumberOfTuples(array->GetNumberOfTuples());
+    if (this->StrainArrayName)
+      {
+      strain->SetName(this->StrainArrayName);
+      }
+    else
+      {
+      strain->SetName("Strain");
+      }
+    }
   vtkSmartPointer<vtkDataArray> qCriterion;
   if(computeQCriterion)
     {
@@ -564,6 +651,8 @@ int vtkGradientFilter::ComputeRegularGridGradient(
                          numberOfInputComponents, fieldAssociation,
                          (vorticity == NULL ? NULL :
                           static_cast<VTK_TT *>(vorticity->GetVoidPointer(0))),
+                         (strain == NULL ? NULL :
+                          static_cast<VTK_TT *>(strain->GetVoidPointer(0))),
                          (qCriterion == NULL ? NULL :
                           static_cast<VTK_TT *>(qCriterion->GetVoidPointer(0)))));
       }
@@ -579,6 +668,8 @@ int vtkGradientFilter::ComputeRegularGridGradient(
                          numberOfInputComponents, fieldAssociation,
                          (vorticity == NULL ? NULL :
                           static_cast<VTK_TT *>(vorticity->GetVoidPointer(0))),
+                         (strain == NULL ? NULL :
+                          static_cast<VTK_TT *>(strain->GetVoidPointer(0))),
                          (qCriterion == NULL ? NULL :
                           static_cast<VTK_TT *>(qCriterion->GetVoidPointer(0)))));
       }
@@ -594,6 +685,8 @@ int vtkGradientFilter::ComputeRegularGridGradient(
                          numberOfInputComponents, fieldAssociation,
                          (vorticity == NULL ? NULL :
                           static_cast<VTK_TT *>(vorticity->GetVoidPointer(0))),
+                         (strain == NULL ? NULL :
+                          static_cast<VTK_TT *>(strain->GetVoidPointer(0))),
                          (qCriterion == NULL ? NULL :
                           static_cast<VTK_TT *>(qCriterion->GetVoidPointer(0)))));
       }
@@ -604,6 +697,10 @@ int vtkGradientFilter::ComputeRegularGridGradient(
     if(vorticity)
       {
       output->GetPointData()->AddArray(vorticity);
+      }
+    if(strain)
+      {
+      output->GetPointData()->AddArray(strain);
       }
     if(qCriterion)
       {
@@ -616,6 +713,10 @@ int vtkGradientFilter::ComputeRegularGridGradient(
     if(vorticity)
       {
       output->GetCellData()->AddArray(vorticity);
+      }
+    if(strain)
+      {
+      output->GetCellData()->AddArray(strain);
       }
     if(qCriterion)
       {
@@ -636,7 +737,8 @@ namespace {
   template<class data_type>
   void ComputePointGradientsUG(
     vtkDataSet *structure, data_type *array, data_type *gradients,
-    int numberOfInputComponents, data_type* vorticity, data_type* qCriterion)
+    int numberOfInputComponents,
+    data_type* vorticity, data_type* strain, data_type* qCriterion)
   {
     vtkIdList* currentPoint = vtkIdList::New();
     currentPoint->SetNumberOfIds(1);
@@ -688,9 +790,12 @@ namespace {
             // Get derivative of cell at point.
             cell->Derivatives(subId, parametricCoord, &values[0], 1, derivative);
 
-            g[InputComponent*3] += static_cast<data_type>(derivative[0]);
-            g[InputComponent*3+1] += static_cast<data_type>(derivative[1]);
-            g[InputComponent*3+2] += static_cast<data_type>(derivative[2]);
+            // g[InputComponent*3] += static_cast<data_type>(derivative[0]);
+            // g[InputComponent*3+1] += static_cast<data_type>(derivative[1]);
+            // g[InputComponent*3+2] += static_cast<data_type>(derivative[2]);
+            g[InputComponent] += static_cast<data_type>(derivative[0]);
+            g[numberOfInputComponents + InputComponent] += static_cast<data_type>(derivative[1]);
+            g[numberOfInputComponents*2 + InputComponent] += static_cast<data_type>(derivative[2]);
             } // iterating over Components
           } // if(GetCellParametricData())
         } // iterating over neighbors
@@ -706,6 +811,10 @@ namespace {
       if(vorticity)
         {
         ComputeVorticityFromGradient(&g[0], vorticity+3*point);
+        }
+      if(strain)
+        {
+        ComputeVorticityFromGradient(&g[0], strain+9*point);
         }
       if(qCriterion)
         {
@@ -756,7 +865,8 @@ namespace {
   template<class data_type>
     void ComputeCellGradientsUG(
       vtkDataSet *structure, data_type *array, data_type *gradients,
-      int numberOfInputComponents, data_type* vorticity, data_type* qCriterion)
+      int numberOfInputComponents,
+      data_type* vorticity, data_type* strain, data_type* qCriterion)
   {
     vtkIdType numcells = structure->GetNumberOfCells();
     std::vector<double> values(8);
@@ -784,16 +894,26 @@ namespace {
           }
 
         cell->Derivatives(subId, cellCenter, &values[0], 1, derivative);
-        gradients[cellid*3*numberOfInputComponents+inputComponent*3] =
+        // gradients[cellid*3*numberOfInputComponents+inputComponent*3] =
+        //   static_cast<data_type>(derivative[0]);
+        // gradients[cellid*3*numberOfInputComponents+inputComponent*3+1] =
+        //   static_cast<data_type>(derivative[1]);
+        // gradients[cellid*3*numberOfInputComponents+inputComponent*3+2] =
+        //   static_cast<data_type>(derivative[2]);
+        gradients[cellid*3*numberOfInputComponents+inputComponent] =
           static_cast<data_type>(derivative[0]);
-        gradients[cellid*3*numberOfInputComponents+inputComponent*3+1] =
+        gradients[(cellid*3+1)*numberOfInputComponents+inputComponent] =
           static_cast<data_type>(derivative[1]);
-        gradients[cellid*3*numberOfInputComponents+inputComponent*3+2] =
+        gradients[(cellid*3+2)*numberOfInputComponents+inputComponent] =
           static_cast<data_type>(derivative[2]);
         }
       if(vorticity)
         {
         ComputeVorticityFromGradient(gradients+3*cellid*numberOfInputComponents, vorticity+3*cellid);
+        }
+      if(strain)
+        {
+        ComputeStrainFromGradient(gradients+3*cellid*numberOfInputComponents, strain+9*cellid);
         }
       if(qCriterion)
         {
@@ -806,7 +926,7 @@ namespace {
   template<class Grid, class data_type>
   void ComputeGradientsSG(Grid output, data_type* array, data_type* gradients,
                           int numberOfInputComponents, int fieldAssociation,
-                          data_type* vorticity, data_type* qCriterion)
+                          data_type* vorticity, data_type* strain, data_type* qCriterion)
   {
     int i, j, k, idx, idx2, ii, inputComponent;
     double xp[3], xm[3], factor;
@@ -1074,15 +1194,28 @@ namespace {
           idx = i + j*dims[0] + k*ijsize;
           for(inputComponent=0;inputComponent<numberOfInputComponents;inputComponent++)
             {
-            gradients[idx*numberOfInputComponents*3+inputComponent*3] = static_cast<data_type>(
+            // gradients[idx*numberOfInputComponents*3+inputComponent*3] = static_cast<data_type>(
+            //   xix*dValuesdXi[inputComponent]+etax*dValuesdEta[inputComponent]+
+            //   zetax*dValuesdZeta[inputComponent]);
+
+            // gradients[idx*numberOfInputComponents*3+inputComponent*3+1] = static_cast<data_type>(
+            //   xiy*dValuesdXi[inputComponent]+etay*dValuesdEta[inputComponent]+
+            //   zetay*dValuesdZeta[inputComponent]);
+
+            // gradients[idx*numberOfInputComponents*3+inputComponent*3+2] = static_cast<data_type>(
+            //   xiz*dValuesdXi[inputComponent]+etaz*dValuesdEta[inputComponent]+
+            //   zetaz*dValuesdZeta[inputComponent]);
+            gradients[idx*3*numberOfInputComponents+inputComponent] = static_cast<data_type>(
               xix*dValuesdXi[inputComponent]+etax*dValuesdEta[inputComponent]+
               zetax*dValuesdZeta[inputComponent]);
 
-            gradients[idx*numberOfInputComponents*3+inputComponent*3+1] = static_cast<data_type>(
+            gradients[(idx*3+1)*numberOfInputComponents+inputComponent] =
+              static_cast<data_type>(
               xiy*dValuesdXi[inputComponent]+etay*dValuesdEta[inputComponent]+
               zetay*dValuesdZeta[inputComponent]);
 
-            gradients[idx*numberOfInputComponents*3+inputComponent*3+2] = static_cast<data_type>(
+            gradients[(idx*3+2)*numberOfInputComponents+inputComponent] =
+              static_cast<data_type>(
               xiz*dValuesdXi[inputComponent]+etaz*dValuesdEta[inputComponent]+
               zetaz*dValuesdZeta[inputComponent]);
             }
@@ -1090,6 +1223,10 @@ namespace {
           if(vorticity)
             {
             ComputeVorticityFromGradient(gradients+idx*numberOfInputComponents*3, vorticity+3*idx);
+            }
+          if(strain)
+            {
+            ComputeStrainFromGradient(gradients+idx*numberOfInputComponents*3, strain+9*idx);
             }
           if(qCriterion)
             {
