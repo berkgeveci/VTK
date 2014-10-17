@@ -53,6 +53,7 @@ set(Module_SRCS
   vtkStructuredGridOutlineFilter.cxx
   vtkSynchronizedTemplates2D.cxx
   vtkSynchronizedTemplates3D.cxx
+  vtkThreadedSynchronizedTemplates3D.cxx
   vtkSynchronizedTemplatesCutter3D.cxx
   vtkTensorGlyph.cxx
   vtkThreshold.cxx
