@@ -577,63 +577,6 @@ void vtkPolyData::GetCellBounds(vtkIdType cellId, double bounds[6])
     }
 }
 
-
-//----------------------------------------------------------------------------
-void vtkPolyData::ComputeBounds()
-{
-  if (this->GetMTime() > this->ComputeTime)
-    {
-    // If there are no cells, but there are points, back to the
-    // bounds of the points set.
-    if (this->GetNumberOfCells() == 0 && this->GetNumberOfPoints())
-      {
-      vtkPointSet::ComputeBounds();
-      return;
-      }
-
-    int t, i;
-    vtkIdType *pts = 0;
-    vtkIdType npts = 0;
-    double x[3];
-
-    vtkCellArray *cella[4];
-
-    cella[0] = this->GetVerts();
-    cella[1] = this->GetLines();
-    cella[2] = this->GetPolys();
-    cella[3] = this->GetStrips();
-
-    // carefully compute the bounds
-    int doneOne = 0;
-    this->Bounds[0] = this->Bounds[2] = this->Bounds[4] =  VTK_DOUBLE_MAX;
-    this->Bounds[1] = this->Bounds[3] = this->Bounds[5] = -VTK_DOUBLE_MAX;
-
-    // Iterate over cells's points
-    for (t = 0; t < 4; t++)
-      {
-      for (cella[t]->InitTraversal(); cella[t]->GetNextCell(npts,pts); )
-        {
-        for (i = 0;  i < npts; i++)
-          {
-          this->Points->GetPoint( pts[i], x );
-          this->Bounds[0] = (x[0] < this->Bounds[0] ? x[0] : this->Bounds[0]);
-          this->Bounds[1] = (x[0] > this->Bounds[1] ? x[0] : this->Bounds[1]);
-          this->Bounds[2] = (x[1] < this->Bounds[2] ? x[1] : this->Bounds[2]);
-          this->Bounds[3] = (x[1] > this->Bounds[3] ? x[1] : this->Bounds[3]);
-          this->Bounds[4] = (x[2] < this->Bounds[4] ? x[2] : this->Bounds[4]);
-          this->Bounds[5] = (x[2] > this->Bounds[5] ? x[2] : this->Bounds[5]);
-          doneOne = 1;
-          }
-        }
-      }
-    if (!doneOne)
-      {
-      vtkMath::UninitializeBounds(this->Bounds);
-      }
-    this->ComputeTime.Modified();
-    }
-}
-
 //----------------------------------------------------------------------------
 // Set the cell array defining vertices.
 void vtkPolyData::SetVerts (vtkCellArray* v)

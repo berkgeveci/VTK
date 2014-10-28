@@ -115,10 +115,6 @@ public:
   void GetPointCells(vtkIdType ptId, vtkIdList *cellIds);
 
   // Description:
-  // Compute the (X, Y, Z)  bounds of the data.
-  void ComputeBounds();
-
-  // Description:
   // Recover extra allocated memory when creating data whose initial size
   // is unknown. Examples include using the InsertNextCell() method, or
   // when using the CellArray::EstimateSize() method to create vertices,
