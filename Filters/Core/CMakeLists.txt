@@ -55,6 +55,7 @@ set(Module_SRCS
   vtkSynchronizedTemplates3D.cxx
   vtkThreadedSynchronizedTemplates3D.cxx
   vtkSynchronizedTemplatesCutter3D.cxx
+  vtkThreadedSynchronizedTemplatesCutter3D.cxx
   vtkTensorGlyph.cxx
   vtkThreshold.cxx
   vtkThresholdPoints.cxx
