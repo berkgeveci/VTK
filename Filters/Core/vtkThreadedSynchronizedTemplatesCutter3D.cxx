@@ -609,7 +609,7 @@ public:
       delta[i] = pt0[i] - this->Origin[i];
       }
     double dot = vtkMath::Dot(delta, this->Normal);
-    return signbit(dot);
+    return std::signbit(dot) == 0 ? 0 : 1;
   }
 
   bool ShouldDoCut(int* exExt)
@@ -686,7 +686,7 @@ void vtkThreadedSynchronizedTemplatesCutter3D::ThreadedExecute(vtkImageData *dat
     return;
     }
 
-  int nPieces = 100;
+  int nPieces = 1000;
   DoThreadedCut functor(this, exExt, data, nPieces);
   vtkSMPTools::For( 0, nPieces, functor );
   int count = 0;
